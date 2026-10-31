@@ -1,4 +1,6 @@
 
+using Scalar.AspNetCore;
+
 namespace sims;
 
 public class Program
@@ -18,6 +20,7 @@ public class Program
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
+            app.MapScalarApiReference();
             app.MapOpenApi();
         }
 
