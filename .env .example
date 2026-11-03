@@ -1,0 +1,38 @@
+# MSSQL Configurations
+MSSQL_SA_PASSWORD=YourStrong!Password123
+
+# Postgres Database Configurations
+POSTGRES_DB=sims
+POSTGRES_USER=sims_admin
+POSTGRES_PASSWORD=YourStrong!Password123
+
+# Connection Strings (.NET Format)
+CONNECTION_STRINGS_AUTH=Host=psql;Port=5432;Database=sims;Username=sims_admin;Password=YourStrong!Password123
+CONNECTION_STRINGS_SIMS=Host=psql;Port=5432;Database=sims;Username=sims_admin;Password=YourStrong!Password123
+CONNECTION_STRINGS_REDIS=redis:6379,password=YourStrong!Password123
+
+# Redis Configuration
+REDIS_PASSWORD=YourStrong!Password123
+
+# JWT & App Settings
+JWT_KEY=SuperSecretJwtSigningKeyWithAtLeast32Chars!
+JWT_ISSUER=sims-auth
+JWT_AUDIENCE=sims-api
+JWT_EXPIRES_MINUTES=15
+
+# Admin Seed Account
+ADMIN_EMAIL=admin@sims.local
+ADMIN_PASSWORD=Test123!
+
+# Service Settings
+CORS_ALLOWED_ORIGINS_0=http://localhost:8080
+MIGRATIONS_RUN=true
+WORKER_POLL_INTERVAL_SECONDS=30
+VERDICT_EPSS_NOGO_THRESHOLD=0.5
+ESCALATION_CRITICAL_HOURS=4
+ESCALATION_HIGH_HOURS=24
+ESCALATION_MEDIUM_HOURS=72
+
+# News API Configuration
+FEEDS_URLS_0=https://example.com/rss
+NEWS_REFRESH_MINUTES=30

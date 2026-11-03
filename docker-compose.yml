@@ -1,9 +1,25 @@
+version: '3.8'
 
 services:
   sql:
-    image: postgres:latest
+    image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: sql
     hostname: sql
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql/data
+    networks:
+      - sims-net
+    restart: unless-stopped
+
+  psql:
+    image: postgres:latest
+    container_name: psql
+    hostname: psql
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -18,7 +34,6 @@ services:
     networks:
       - sims-net
     restart: unless-stopped
-  
 
   redis:
     image: redis:latest
@@ -38,168 +53,121 @@ services:
       - sims-net
     restart: unless-stopped
 
+
+# Multi-Stage-Dockerfiles
+  # auth-api:
+  #   build:
+  #     context: ./src/AuthApi
+  #     dockerfile: Dockerfile
+  #   container_name: auth-api
+  #   hostname: auth-api
+  #   ports:
+  #     - "8081:8080"
+  #   environment:
+  #     - ConnectionStrings__Auth=${CONNECTION_STRINGS_AUTH}
+  #     - ConnectionStrings__Redis=${CONNECTION_STRINGS_REDIS}
+  #     - Jwt__Key=${JWT_KEY}
+  #     - Jwt__Issuer=${JWT_ISSUER}
+  #     - Jwt__Audience=${JWT_AUDIENCE}
+  #     - Jwt__ExpiresMinutes=${JWT_EXPIRES_MINUTES}
+  #     - Admin__Email=${ADMIN_EMAIL}
+  #     - Admin__Password=${ADMIN_PASSWORD}
+  #     - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS_0}
+  #     - Migrations__Run=${MIGRATIONS_RUN}
+  #   depends_on:
+  #     psql:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - sims-net
+  #   restart: unless-stopped
+
+  # scan-api:
+  #   build:
+  #     context: ./src/ScanApi
+  #     dockerfile: Dockerfile
+  #   container_name: scan-api
+  #   hostname: scan-api
+  #   ports:
+  #     - "8082:8080"
+  #   environment:
+  #     - ConnectionStrings__Sims=${CONNECTION_STRINGS_SIMS}
+  #     - ConnectionStrings__Redis=${CONNECTION_STRINGS_REDIS}
+  #     - Jwt__Key=${JWT_KEY}
+  #     - Jwt__Issuer=${JWT_ISSUER}
+  #     - Jwt__Audience=${JWT_AUDIENCE}
+  #     - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS_0}
+  #     - Migrations__Run=${MIGRATIONS_RUN}
+  #   depends_on:
+  #     psql:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - sims-net
+  #   restart: unless-stopped
+
+  # news-api:
+  #   build:
+  #     context: ./src/NewsApi
+  #     dockerfile: Dockerfile
+  #   container_name: news-api
+  #   hostname: news-api
+  #   ports:
+  #     - "8083:8080"
+  #   environment:
+  #     - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS_0}
+  #     - Feeds__Urls__0=${FEEDS_URLS_0}
+  #     - News__RefreshMinutes=${NEWS_REFRESH_MINUTES}
+  #   networks:
+  #     - sims-net
+  #   restart: unless-stopped
+
+  # worker:
+  #   build:
+  #     context: ./src/Worker
+  #     dockerfile: Dockerfile
+  #   container_name: worker
+  #   hostname: worker
+  #   environment:
+  #     - ConnectionStrings__Sims=${CONNECTION_STRINGS_SIMS}
+  #     - ConnectionStrings__Redis=${CONNECTION_STRINGS_REDIS}
+  #     - Worker__PollIntervalSeconds=${WORKER_POLL_INTERVAL_SECONDS}
+  #     - Verdict__EpssNoGoThreshold=${VERDICT_EPSS_NOGO_THRESHOLD}
+  #     - Escalation__CriticalHours=${ESCALATION_CRITICAL_HOURS}
+  #     - Escalation__HighHours=${ESCALATION_HIGH_HOURS}
+  #     - Escalation__MediumHours=${ESCALATION_MEDIUM_HOURS}
+  #   depends_on:
+  #     psql:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - sims-net
+  #   restart: unless-stopped
+
+  # web:
+  #   build:
+  #     context: ./src/Web
+  #     dockerfile: Dockerfile
+  #   container_name: web
+  #   hostname: web
+  #   ports:
+  #     - "8080:8080"
+  #   depends_on:
+  #     - auth-api
+  #     - scan-api
+  #     - news-api
+  #   networks:
+  #     - sims-net
+  #   restart: unless-stopped
+
 networks:
   sims-net:
     driver: bridge
 
 volumes:
+  mssql_data:
   postgres_data:
   redis_data:
-
-
-
-  # sql:
-  #   image: bitnami/postgresql:latest
-  #   container_name: sql
-  #   hostname: sql
-  #   user: "1001"
-  #   environment:
-  #     - POSTGRESQL_USERNAME=${POSTGRES_USER}
-  #     - POSTGRESQL_PASSWORD=${POSTGRES_PASSWORD}
-  #     - POSTGRESQL_DATABASE=${POSTGRES_DB}
-  #   volumes:
-  #     - postgres_data:/bitnami/postgresql
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-  #     interval: 5s
-  #     timeout: 5s
-  #     retries: 5
-  #   networks:
-  #     - sims-net
-  #   restart: unless-stopped
-
-
-#   redis:
-#     image: bitnami/redis:7.2-debian-12
-#     container_name: redis
-#     hostname: redis
-#     user: "1001"
-#     environment:
-#       - REDIS_PASSWORD=${REDIS_PASSWORD}
-#       - REDIS_AOF_ENABLED=yes
-#     volumes:
-#       - redis_data:/bitnami/redis/data
-#     healthcheck:
-#       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
-#       interval: 5s
-#       timeout: 5s
-#       retries: 5
-#     networks:
-#       - sims-net
-#     restart: unless-stopped
-
-#   auth-api:
-#     build:
-#       context: .
-#       dockerfile: src/AuthApi/Dockerfile
-#     container_name: auth-api
-#     hostname: auth-api
-#     ports:
-#       - "8081:8080"
-#     environment:
-#       - ConnectionStrings__Auth=${CONNECTION_STRINGS_AUTH}
-#       - ConnectionStrings__Redis=${CONNECTION_STRINGS_REDIS}
-#       - Jwt__Key=${JWT_KEY}
-#       - Jwt__Issuer=${JWT_ISSUER}
-#       - Jwt__Audience=${JWT_AUDIENCE}
-#       - Jwt__ExpiresMinutes=${JWT_EXPIRES_MINUTES}
-#       - Admin__Email=${ADMIN_EMAIL}
-#       - Admin__Password=${ADMIN_PASSWORD}
-#       - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS_0}
-#       - Migrations__Run=${MIGRATIONS_RUN}
-#     depends_on:
-#       sql:
-#         condition: service_healthy
-#       redis:
-#         condition: service_healthy
-#     networks:
-#       - sims-net
-#     restart: unless-stopped
-
-#   scan-api:
-#     build:
-#       context: .
-#       dockerfile: src/ScanApi/Dockerfile
-#     container_name: scan-api
-#     hostname: scan-api
-#     ports:
-#       - "8082:8080"
-#     environment:
-#       - ConnectionStrings__Sims=${CONNECTION_STRINGS_SIMS}
-#       - ConnectionStrings__Redis=${CONNECTION_STRINGS_REDIS}
-#       - Jwt__Key=${JWT_KEY}
-#       - Jwt__Issuer=${JWT_ISSUER}
-#       - Jwt__Audience=${JWT_AUDIENCE}
-#       - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS_0}
-#       - Migrations__Run=${MIGRATIONS_RUN}
-#     depends_on:
-#       sql:
-#         condition: service_healthy
-#       redis:
-#         condition: service_healthy
-#     networks:
-#       - sims-net
-#     restart: unless-stopped
-
-#   news-api:
-#     build:
-#       context: .
-#       dockerfile: src/NewsApi/Dockerfile
-#     container_name: news-api
-#     hostname: news-api
-#     ports:
-#       - "8083:8080"
-#     environment:
-#       - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS_0}
-#       - Feeds__Urls__0=${FEEDS_URLS_0}
-#       - News__RefreshMinutes=${NEWS_REFRESH_MINUTES}
-#     networks:
-#       - sims-net
-#     restart: unless-stopped
-
-#   worker:
-#     build:
-#       context: .
-#       dockerfile: src/Worker/Dockerfile
-#     container_name: worker
-#     hostname: worker
-#     environment:
-#       - ConnectionStrings__Sims=${CONNECTION_STRINGS_SIMS}
-#       - ConnectionStrings__Redis=${CONNECTION_STRINGS_REDIS}
-#       - Worker__PollIntervalSeconds=${WORKER_POLL_INTERVAL_SECONDS}
-#       - Verdict__EpssNoGoThreshold=${VERDICT_EPSS_NOGO_THRESHOLD}
-#       - Escalation__CriticalHours=${ESCALATION_CRITICAL_HOURS}
-#       - Escalation__HighHours=${ESCALATION_HIGH_HOURS}
-#       - Escalation__MediumHours=${ESCALATION_MEDIUM_HOURS}
-#     depends_on:
-#       sql:
-#         condition: service_healthy
-#       redis:
-#         condition: service_healthy
-#     networks:
-#       - sims-net
-#     restart: unless-stopped
-
-#   web:
-#    build:
-#      context: .
-#      dockerfile: src/Web/Dockerfile
-#    container_name: web
-#    hostname: web
-#    ports:
-#      - "8080:8080"
-#    depends_on:
-#      - auth-api
-#      - scan-api
-#      - news-api
-#    networks:
-#      - sims-net
-#    restart: unless-stopped
-
-# networks:
-#   sims-net:
-#     driver: bridge
-
-# volumes:
-#   postgres_data:
-#   redis_data:
