@@ -1,3 +1,5 @@
+/// Definiert die festen Benutzerrollen
+
 namespace Sims.Contracts;
 
 public static class Roles

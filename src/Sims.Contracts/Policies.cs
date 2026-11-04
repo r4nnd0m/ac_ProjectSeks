@@ -1,3 +1,5 @@
+/// Definiert die Namen für die Authorisierung
+
 namespace Sims.Contracts;
 
 public static class Policies
