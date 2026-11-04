@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Sims.Logging\Sims.Logging.csproj" />
+    <ProjectReference Include="..\Sims.Contracts\Sims.Contracts.csproj" />
   </ItemGroup>
 
 </Project>
