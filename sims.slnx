@@ -1,11 +1,11 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/Sims.Auth.Api/Sims.Auth.Api.csproj" />
+    <Project Path="src/AuthApi/AuthApi.csproj" />
     <Project Path="src/Sims.Logging/Sims.Logging.csproj" />
-    <Project Path="src/Sims.News.Api/Sims.News.Api.csproj" />
-    <Project Path="src/Sims.Scan.Api/Sims.Scan.Api.csproj" />
+    <Project Path="src/NewsApi/NewsApi.csproj" />
+    <Project Path="src/ScanApi/ScanApi.csproj" />
     <Project Path="src/Sims.Shared/Sims.Shared.csproj" />
-    <Project Path="src/Sims.Worker/Sims.Worker.csproj" />
+    <Project Path="src/Worker/Worker.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Sims.News.Api.Tests/Sims.News.Api.Tests.csproj" />
