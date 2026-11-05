@@ -16,7 +16,9 @@ Creds in eine .env schieben
 cp .env.example .env
 
 Docker container erstellen btw starten
+ 
  docker compose up -d sql (oder psql wenn postgres erwüscht)
+ 
  docker compose up -d redis
 
  !!!WICHTIG!!!
