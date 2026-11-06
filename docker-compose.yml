@@ -1,6 +1,14 @@
-version: '3.8'
-
 services:
+  # Setzt einmalig die Rechte im MSSQL-Volume (User mssql = UID 10001) und beendet sich danach
+  sql-init:
+    image: busybox:latest
+    container_name: sql-init
+    user: root
+    command: ["sh", "-c", "mkdir -p /var/opt/mssql/data /var/opt/mssql/log /var/opt/mssql/secrets && chown -R 10001:0 /var/opt/mssql"]
+    volumes:
+      - mssql_data:/var/opt/mssql
+    restart: "no"
+
   sql:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: sql
@@ -11,29 +19,32 @@ services:
     ports:
       - "1433:1433"
     volumes:
-      - mssql_data:/var/opt/mssql/data
+      - mssql_data:/var/opt/mssql
+    depends_on:
+      sql-init:
+        condition: service_completed_successfully
     networks:
       - sims-net
     restart: unless-stopped
 
-  psql:
-    image: postgres:latest
-    container_name: psql
-    hostname: psql
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - sims-net
-    restart: unless-stopped
+#  psql:
+#    image: postgres:latest
+#    container_name: psql
+#    hostname: psql
+#    environment:
+#      POSTGRES_USER: ${POSTGRES_USER}
+#      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+#      POSTGRES_DB: ${POSTGRES_DB}
+#    volumes:
+#      - postgres_data:/var/lib/postgresql/data
+#    healthcheck:
+#      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+#      interval: 5s
+#      timeout: 5s
+#      retries: 5
+#    networks:
+#      - sims-net
+#    restart: unless-stopped
 
   redis:
     image: redis:latest
