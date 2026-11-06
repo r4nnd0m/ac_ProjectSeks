@@ -3,7 +3,8 @@ Stand: 06.11.2026. D3 ist teilweise implementiert, keine vollständige Abnahme.
 
 Umfang
 Die unabhängigen Schritte D3.1-D3.3 und die Zuordnung der Zusatzdaten sind vorhanden.
-Der reguläre ScanProcessor ist weiterhin ein Platzhalter ohne SQL-Zugriff.
+Der ScanProcessor-Ablauf ist inzwischen vorbereitet; Details stehen in
+D3_Scanablauf_Uebergabe.txt. Im normalen Host bleibt UnconfiguredScanProcessor aktiv.
 Keine Shared-Entities, Urteilsregeln oder Ticket-Regeln wurden ersetzt.
 
 Öffentliche Worker-interne Schnittstellen (Namespace Worker.Enrichment)
@@ -79,7 +80,7 @@ Nächste Integration mit B1/B4/C3/C4
 - Aufrufer-Abbruch weitergeben; unterbrochene Scans benötigen D1-Recovery.
 - Nach B1/B4/C3/C4-Integration Upload-Gesamttest, Fehlerpfade und Ticket-Duplikate prüfen.
 
-Validierung
+Validierung des ursprünglichen Anreicherungs-Schritts
 120 Tests bestanden: 107 Worker (davon 58 neue: 20 KEV, 34 EPSS, 4 Enricher),
 13 Logging. Solution mit 11 Projekten ohne Warnungen/Fehler gebaut.
 Live-Test mit den tatsächlich registrierten Clients am 06.11.2026:

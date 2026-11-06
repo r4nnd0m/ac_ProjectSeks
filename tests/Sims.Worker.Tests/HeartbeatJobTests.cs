@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using Worker;
+using Worker.Scanning;
 
 namespace Sims.Worker.Tests;
 
@@ -74,6 +75,7 @@ public sealed class HeartbeatJobTests
         builder.Services.AddOptions<WorkerOptions>()
             .Configure(options => options.PollIntervalSeconds = 86400);
         builder.Services.AddScoped<IScanProcessor>(_ => processor);
+        builder.Services.AddScoped<IScanRecovery>(_ => processor);
         builder.Services.AddHostedService<global::Worker.Worker>();
         builder.Services.AddHostedService<HeartbeatJob>();
         using var host = builder.Build();
@@ -111,10 +113,16 @@ public sealed class HeartbeatJobTests
         Assert.True(job.ExecuteTask?.IsCompletedSuccessfully);
     }
 
-    private sealed class WaitingProcessor : IScanProcessor
+    private sealed class WaitingProcessor : IScanProcessor, IScanRecovery
     {
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Stopped { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task RecoverAsync(CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            return Task.CompletedTask;
+        }
 
         public async Task ProcessPendingAsync(CancellationToken cancellationToken)
         {

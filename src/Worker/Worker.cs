@@ -1,32 +1,32 @@
 using Microsoft.Extensions.Options;
+using Worker.Scanning;
 
 namespace Worker;
 
 public class Worker(
     IServiceScopeFactory scopes,
     ILogger<Worker> logger,
-    IOptions<WorkerOptions> options) : BackgroundService
+    IOptions<WorkerOptions> options,
+    TimeProvider clock) : BackgroundService
 {
+    private bool recoveryCompleted;
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var intervalSeconds = options.Value.PollIntervalSeconds;
         logger.LogInformation(
             "Worker gestartet. Arbeitsabstand: {PollIntervalSeconds} Sekunden.",
             intervalSeconds);
-        logger.LogInformation(
-            "Grundgerüst aktiv: Scan-Verarbeitung und Datenbankanbindung sind noch nicht angeschlossen.");
-
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(intervalSeconds));
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(intervalSeconds), clock);
         long cycle = 0;
 
         try
         {
-            // Der erste Testdurchlauf startet sofort, weitere folgen im eingestellten Abstand.
+            // Der erste Durchlauf startet sofort, weitere folgen im eingestellten Abstand.
             do
             {
                 stoppingToken.ThrowIfCancellationRequested();
                 logger.LogInformation(
-                    "Testdurchlauf {Cycle}: ScanProcessor wird aufgerufen.",
+                    "Worker-Durchlauf {Cycle}: Neustartprüfung bzw. Scan-Verarbeitung wird aufgerufen.",
                     ++cycle);
                 await ProcessCycleAsync(stoppingToken);
             }
@@ -49,6 +49,12 @@ public class Worker(
             // Ein eigener Arbeitsbereich pro Durchlauf: später auch für den DbContext.
             // AsyncScope räumt ebenso Dienste mit asynchronem Dispose zuverlässig auf.
             await using var scope = scopes.CreateAsyncScope();
+            if (!recoveryCompleted)
+            {
+                await scope.ServiceProvider.GetRequiredService<IScanRecovery>().RecoverAsync(stoppingToken);
+                recoveryCompleted = true;
+            }
+            // Fehler in Recovery verhindert neue Scans. Nächster Takt versucht sie erneut.
             var processor = scope.ServiceProvider.GetRequiredService<IScanProcessor>();
             await processor.ProcessPendingAsync(stoppingToken);
         }

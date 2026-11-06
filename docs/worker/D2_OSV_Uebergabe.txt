@@ -4,7 +4,8 @@ Stand: 06.11.2026
 Zweck
 Zu Komponenten bekannte Sicherheitslücken abfragen und zugeordnete Daten liefern.
 Kein Datenbankzugriff, keine Entities, keine Urteilsermittlung und keine Tickets.
-Der reguläre ScanProcessor ist weiterhin ein Platzhalter; sein Anschluss folgt in D3.
+Der ScanProcessor-Ablauf ist inzwischen vorbereitet (D3_Scanablauf_Uebergabe.txt).
+Der normale Host verwendet bis zur Team-Integration UnconfiguredScanProcessor.
 
 Dateien
 src/Worker/Osv/: Client, Vertrag, DTOs, Eingabe/Ergebnis, Ausnahme, Registrierung.

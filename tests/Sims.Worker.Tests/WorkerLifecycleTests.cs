@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Worker;
+using Worker.Scanning;
 
 namespace Sims.Worker.Tests;
 
@@ -113,6 +114,7 @@ public sealed class WorkerLifecycleTests
             services.AddLogging(builder => builder.ClearProviders().AddProvider(Logs));
             services.AddSingleton(State);
             services.AddScoped<IScanProcessor, ProbeProcessor>();
+            services.AddScoped<IScanRecovery, EmptyRecovery>();
             _services = services.BuildServiceProvider(new ServiceProviderOptions
             {
                 ValidateScopes = true,
@@ -121,7 +123,7 @@ public sealed class WorkerLifecycleTests
             _worker = new global::Worker.Worker(
                 _services.GetRequiredService<IServiceScopeFactory>(),
                 _services.GetRequiredService<ILogger<global::Worker.Worker>>(),
-                Options.Create(new WorkerOptions { PollIntervalSeconds = pollIntervalSeconds }));
+                Options.Create(new WorkerOptions { PollIntervalSeconds = pollIntervalSeconds }), TimeProvider.System);
         }
 
         public Task StartAsync() => _worker.StartAsync(CancellationToken.None);
@@ -146,6 +148,11 @@ public sealed class WorkerLifecycleTests
                 await _services.DisposeAsync();
             }
         }
+    }
+
+    private sealed class EmptyRecovery : IScanRecovery
+    {
+        public Task RecoverAsync(CancellationToken ct) => Task.CompletedTask;
     }
 
     private sealed class ProbeState(Func<int, CancellationToken, Task> action)

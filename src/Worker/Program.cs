@@ -3,6 +3,7 @@ using StackExchange.Redis;
 using Worker.Osv;
 using Worker.Enrichment;
 using Worker.Escalation;
+using Worker.Scanning;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -40,7 +41,9 @@ redisOptions.ClientName = "sims-worker";
 using var redis = await ConnectionMultiplexer.ConnectAsync(redisOptions);
 builder.Services.AddSingleton<IConnectionMultiplexer>(redis);
 builder.Logging.AddRedis(redis, "worker");
-builder.Services.AddScoped<Worker.IScanProcessor, Worker.ScanProcessor>();
+// Erst mit echten B1/B4/C3-Adaptern auf ScanProcessor/ScanRecovery umstellen.
+builder.Services.AddScoped<Worker.IScanProcessor, UnconfiguredScanProcessor>();
+builder.Services.AddScoped<IScanRecovery, UnconfiguredScanRecovery>();
 builder.Services.AddOsvClient();
 builder.Services.AddKevClient();
 builder.Services.AddEpssClient();

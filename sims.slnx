@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/examples/">
+    <Project Path="examples/Sims.Worker.Demo/Sims.Worker.Demo.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/AuthApi/AuthApi.csproj" />
     <Project Path="src/Sims.Contracts/Sims.Contracts.csproj" />
