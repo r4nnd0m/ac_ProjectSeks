@@ -1,6 +1,7 @@
 using Sims.Logging;
 using StackExchange.Redis;
 using Worker.Osv;
+using Worker.Enrichment;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -40,6 +41,9 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(redis);
 builder.Logging.AddRedis(redis, "worker");
 builder.Services.AddScoped<Worker.IScanProcessor, Worker.ScanProcessor>();
 builder.Services.AddOsvClient();
+builder.Services.AddKevClient();
+builder.Services.AddEpssClient();
+builder.Services.AddScoped<IFindingEnricher, FindingEnricher>();
 builder.Services.AddHostedService<Worker.Worker>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHostedService<Worker.HeartbeatJob>();
