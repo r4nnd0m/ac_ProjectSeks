@@ -2,7 +2,10 @@ using Microsoft.Extensions.Options;
 
 namespace Worker;
 
-public class Worker(ILogger<Worker> logger, IOptions<WorkerOptions> options) : BackgroundService
+public class Worker(
+    IServiceScopeFactory scopes,
+    ILogger<Worker> logger,
+    IOptions<WorkerOptions> options) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -23,8 +26,9 @@ public class Worker(ILogger<Worker> logger, IOptions<WorkerOptions> options) : B
             {
                 stoppingToken.ThrowIfCancellationRequested();
                 logger.LogInformation(
-                    "Testdurchlauf {Cycle}: Zeitsteuerung aktiv; noch keine Scan-Verarbeitung.",
+                    "Testdurchlauf {Cycle}: ScanProcessor wird aufgerufen.",
                     ++cycle);
+                await ProcessCycleAsync(stoppingToken);
             }
             while (await timer.WaitForNextTickAsync(stoppingToken));
         }
@@ -35,6 +39,31 @@ public class Worker(ILogger<Worker> logger, IOptions<WorkerOptions> options) : B
         finally
         {
             logger.LogInformation("Worker sauber beendet.");
+        }
+    }
+
+    private async Task ProcessCycleAsync(CancellationToken stoppingToken)
+    {
+        try
+        {
+            // Ein eigener Arbeitsbereich pro Durchlauf: später auch für den DbContext.
+            // AsyncScope räumt ebenso Dienste mit asynchronem Dispose zuverlässig auf.
+            await using var scope = scopes.CreateAsyncScope();
+            var processor = scope.ServiceProvider.GetRequiredService<IScanProcessor>();
+            await processor.ProcessPendingAsync(stoppingToken);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            // Ein gewünschtes Beenden ist kein fehlgeschlagener Scan-Durchlauf.
+            throw;
+        }
+        catch (Exception exception)
+        {
+            // Auch die Konsolenausgabe soll keine fremden Fehlermeldungen mit Secrets enthalten.
+            logger.LogError(
+                "Scan-Durchlauf fehlgeschlagen ({ErrorType}). " +
+                "Der nächste Durchlauf wird erneut versucht.",
+                exception.GetType().Name);
         }
     }
 }
