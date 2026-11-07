@@ -1,6 +1,9 @@
+using Microsoft.AspNetCore.Identity;
+
 namespace AuthApi.Models;
 
-public class ApplicationUser
+public class ApplicationUser : IdentityUser<Guid>
 {
-    // TODO: A1: erbt von IdentityUser<Guid>, plus TeamId und IsActive
+    public Guid TeamId { get; set; }
+    public bool IsActive { get; set; } = true;
 }
