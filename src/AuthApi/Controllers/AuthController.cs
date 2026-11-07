@@ -1,3 +1,6 @@
+using AuthApi.Models;
+using AuthApi.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AuthApi.Controllers;
@@ -6,5 +9,13 @@ namespace AuthApi.Controllers;
 [Route("auth")]
 public class AuthController : ControllerBase
 {
-    // TODO: login (A2), me (A2), logout (A5)
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly ITokenService _tokenService;
+
+    public AuthController(UserManager<ApplicationUser> userManager, ITokenService tokenService)
+    {
+        _userManager = userManager;
+        _tokenService = tokenService;
+    }
+
 }
