@@ -1,0 +1,27 @@
+﻿B5 | Das vom Worker gespeicherte Ergebnis anzeigen
+Rolle 2 | Scan-API A und Security-Basis
+Ansprechperson: Patrik | Entwurf vom 07.11.2026
+
+B5 liest die Ergebnisse von D3. Für die Abnahme können wir den Scan über die API kontrollieren.
+
+Vorschlag für die Umsetzung
+
+Wir schlagen vor, die scanId aus dem Upload für GET /scans/{id} zu verwenden. B5 liest
+Status, Verdict, FinishedAt, ErrorMessage und die zugehörigen Findings aus den gemeinsamen
+Daten. Pending und Scanning haben ein leeres Urteil. Scanned liefert das berechnete Urteil.
+Failed liefert einen Fehlerhinweis und ein leeres Urteil.
+
+Stefan speichert das Ergebnis in SQL. B5 liefert die im Schnittstellendokument vereinbarten
+Felder. Die Projektzugehörigkeit bestimmt, wer den Scan lesen darf.
+
+Beispiel für die gemeinsame Prüfung
+
+Einen Scan mit einem festen High-Fund, IsKev=false und Epss=0.20 abschließen. Der
+berechtigte Benutzer sieht Scanned, GoWithConditions und einen Fund. Bei einem separat
+simulierten Quellenfehler sieht er Failed mit leerem Urteil.
+
+Rückmeldung an Stefan
+
+Branch und Beispielantwort für einen abgeschlossenen Scan.
+Passt / gewünschte Änderung: _________________________________
+Branch, Commit oder geplanter Termin: ________________________

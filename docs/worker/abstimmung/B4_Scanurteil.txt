@@ -1,0 +1,28 @@
+﻿B4 | Welches Urteil folgt aus den Funden eines Scans?
+Für Christian | Abstimmung mit Stefan | Entwurf vom 07.11.2026
+
+D3 fragt B4 nach einem einzigen Urteil für den gesamten Scan.
+
+Vorschlag für die Umsetzung
+
+Wir schlagen den Aufruf VerdictCalculator.Calculate(IReadOnlyList<Finding> findings) aus der
+OOP-Unterlage vor. Stefan bildet die Worker-Funde auf die gemeinsamen B1-Findings ab.
+Relevant sind Severity, IsKev und Epss. B4 liefert einen gemeinsamen Verdict und stellt
+AddVerdictRules(config) bereit.
+
+Vorschlag für die erste Konfiguration: Verdict:EpssNoGoThreshold = 0.50. KEV, Critical oder
+ein EPSS-Wert ab der Grenze ergeben NoGo. Medium oder High ergeben GoWithConditions, solange
+keine strengere Regel greift. Bei nur Low ohne weitere Treffer oder bei einer leeren Liste
+gilt Go. Ein fehlender EPSS-Wert bleibt null. Ein Ausfall der Datenquelle wird vom Worker
+als Scanfehler behandelt.
+
+Beispiel für die gemeinsame Prüfung
+
+Ein einzelner High-Fund mit IsKev=false und Epss=0.20 ergibt GoWithConditions. Mit Epss=0.50
+ergibt derselbe Fund NoGo. Mit IsKev=true ergibt er ebenfalls NoGo.
+
+Rückmeldung an Stefan
+
+Branch oder geplanter Beispielaufruf mit B1-Typen, Registrierung und bestätigtem Grenzwert.
+Passt / gewünschte Änderung: _________________________________
+Branch, Commit oder geplanter Termin: ________________________
