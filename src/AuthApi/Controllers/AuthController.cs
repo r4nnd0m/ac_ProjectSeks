@@ -29,6 +29,14 @@ public class AuthController : ControllerBase
             return Unauthorized();
         }
 
+        if (!await _userManager.CheckPasswordAsync(user, request.Password))
+        {
+            await _userManager.AccessFailedAsync(user);
+            return Unauthorized();
+        }
+
+        await _userManager.ResetAccessFailedCountAsync(user);
+        
         throw new NotImplementedException();
     }
 }
