@@ -67,6 +67,12 @@ public class Program
                 };
             });
 
+        builder.Services.AddAuthorization(o =>
+        {
+            o.AddPolicy(Policies.AdminOnly, p => p.RequireRole(Roles.Admin));
+            o.AddPolicy(Policies.MfaRequired, p => p.RequireClaim(ClaimNames.Mfa, "true"));
+        });
+
         var app = builder.Build();
 
         if (app.Configuration["Migrations:Run"] == "true")
