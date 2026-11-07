@@ -1,4 +1,3 @@
 namespace AuthApi.Dtos;
 
-// TODO: A2: Felder laut Schnittstellen-Dokument
-public record LoginResponse;
+public record LoginResponse(string? AccessToken, int? ExpiresInSeconds, bool MfaRequired, string? MfaToken);
