@@ -36,6 +36,11 @@ public class AuthController : ControllerBase
         }
 
         await _userManager.ResetAccessFailedCountAsync(user);
+
+        IList<string> roles = await _userManager.GetRolesAsync(user);
+        string role = roles.Single();
+        string token = _tokenService.CreateAccessToken(user, role, false);
+        
         
         throw new NotImplementedException();
     }
