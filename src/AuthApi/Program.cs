@@ -38,9 +38,16 @@ public class Program
 
         if (app.Configuration["Migrations:Run"] == "true")
         {
-            using var scope = app.Services.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+            using IServiceScope scope = app.Services.CreateScope();
+            AuthDbContext db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
             await MigrateWithRetryAsync(db, app.Logger);
+
+            UserManager<ApplicationUser> userManager =
+                scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            RoleManager<IdentityRole<Guid>> roleManager =
+                scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+
+            await DbSeeder.SeedAsync(db, userManager, roleManager, app.Configuration);
         }
 
         // Configure the HTTP request pipeline.
