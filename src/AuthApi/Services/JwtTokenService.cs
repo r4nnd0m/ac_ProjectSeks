@@ -1,7 +1,10 @@
 using System.Security.Claims;
+using System.Text;
 using AuthApi.Models;
 using AuthApi.Options;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.IdentityModel.Tokens;
 using Sims.Contracts;
 
 namespace AuthApi.Services;
@@ -30,7 +33,20 @@ public class JwtTokenService : ITokenService
             claims.Add(new Claim(ClaimNames.Mfa, "true"));
         }
 
+        SymmetricSecurityKey key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.Key));
+        SigningCredentials credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        throw new NotImplementedException();
+        SecurityTokenDescriptor descriptor = new SecurityTokenDescriptor
+        {
+            Issuer = _options.Issuer,
+            Audience = _options.Audience,
+            Subject = new ClaimsIdentity(claims),
+            Expires = DateTime.UtcNow.AddMinutes(_options.ExpiresMinutes),
+            SigningCredentials = credentials
+        };
+
+        JsonWebTokenHandler handler = new JsonWebTokenHandler();
+        string token = handler.CreateToken(descriptor);
+        return token;
     }
 }
