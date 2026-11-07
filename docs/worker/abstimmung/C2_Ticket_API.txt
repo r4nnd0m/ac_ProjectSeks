@@ -1,0 +1,27 @@
+﻿C2 | Wie erscheint ein Worker-Ticket in der API?
+Für Leo | Abstimmung mit Stefan | Entwurf vom 07.11.2026
+
+C2 macht die von D3 und D4 gespeicherten Tickets für die Oberfläche lesbar.
+
+Vorschlag für die Umsetzung
+
+Wir schlagen vor, dass GET /tickets/{id} Status, escalationLevel, assignedRole, dueAt und
+assigneeName aus demselben SQL-Ticket liefert, das der Worker geändert hat. Die Ticketliste
+berücksichtigt das Team des Benutzers. Admins dürfen teamübergreifend lesen.
+
+Ein Ticket auf Stufe 2 mit assignedRole=Lead ist der Rolle zugeordnet. Bei leerem
+persönlichen Bearbeiter bleibt „Meine Tickets“ für Anna leer. Erst wenn Anna das Ticket mit
+POST /tickets/{id}/take übernimmt, verweist die persönliche Zuordnung auf Anna. D4 braucht
+für seine Arbeit das C1-Modell. C2 verwenden wir, um das Ergebnis von außen zu prüfen.
+
+Beispiel für die gemeinsame Prüfung
+
+Ein Ticket im eigenen Team auf Stufe 2 eskalieren und über GET /tickets/{id} lesen. Lead und
+Escalated müssen sichtbar sein. Ein berechtigter Benutzer übernimmt es. Danach erscheint es
+unter seinen eigenen Tickets.
+
+Rückmeldung an Stefan
+
+Branch und ein berechtigtes Testkonto bzw. Ablauf für den gemeinsamen Test.
+Passt / gewünschte Änderung: _________________________________
+Branch, Commit oder geplanter Termin: ________________________
