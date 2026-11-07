@@ -1,3 +1,4 @@
+using AuthApi.Dtos;
 using AuthApi.Models;
 using AuthApi.Services;
 using Microsoft.AspNetCore.Identity;
@@ -18,4 +19,16 @@ public class AuthController : ControllerBase
         _tokenService = tokenService;
     }
 
+    [HttpPost("login")]
+    public async Task<IActionResult> Login(LoginRequest request)
+    {
+        ApplicationUser? user = await _userManager.FindByEmailAsync(request.Email);
+
+        if (user == null || !user.IsActive || await _userManager.IsLockedOutAsync(user))
+        {
+            return Unauthorized();
+        }
+
+        throw new NotImplementedException();
+    }
 }
