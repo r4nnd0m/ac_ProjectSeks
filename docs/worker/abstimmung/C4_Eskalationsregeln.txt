@@ -1,0 +1,31 @@
+﻿C4 | Wann geht ein Ticket an Lead oder Admin?
+Für Christian | Abstimmung mit Stefan | Entwurf vom 07.11.2026
+
+C3 benötigt die Startstufe. D4 benötigt die nächste Stufe samt Rolle und Frist.
+
+Vorschlag für die Umsetzung
+
+Wir schlagen die beiden Methoden aus der Anleitung vor. StartFor(severity, isKev, now) gibt
+Startstufe, zuständige Rolle und Frist zurück. NextLevel(ticket, now) liefert den nächsten
+Schritt oder null. C4 stellt AddEscalation(config) bereit. Die Uhrzeit liefert der Aufrufer.
+
+Regulärer Start ist Stufe 1 mit leerer Rolle. Standardfristen sind Critical 4 h, High 24 h
+und Medium 72 h. Low hat regulär keine Frist. Ein KEV-Ticket startet auf Stufe 3 mit Admin
+und ohne Frist. Nach Ablauf der ersten Frist geht ein offenes Ticket auf Stufe 2 mit Lead
+und neuer Frist. Nach der zweiten Frist geht es auf Stufe 3 mit Admin und ohne weitere
+Frist. Bei Closed, RiskAccepted, Stufe 3 sowie fehlender oder noch laufender Frist liefert
+NextLevel null.
+
+Beispiel für die gemeinsame Prüfung
+
+Start eines High-Tickets um Montag 10:00 UTC. Bei 24 h Frist ist es Dienstag um 10:00 genau
+fällig. Beim ersten Prüflauf nach 10:00 erhält es Lead und 24 neue Stunden ab diesem
+Prüflauf. D4 prüft alle 60 Sekunden. Für einen schnellen Integrationstest die High-Frist vor
+dem Erzeugen auf 0,01 Stunden setzen.
+
+Rückmeldung an Stefan
+
+Branch oder Beispielaufrufe von StartFor und NextLevel mit B1-/C1-Typen und
+Konfigurationsnamen.
+Passt / gewünschte Änderung: _________________________________
+Branch, Commit oder geplanter Termin: ________________________

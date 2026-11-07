@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/examples/">
+    <Project Path="examples/Sims.Worker.Demo/Sims.Worker.Demo.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/AuthApi/AuthApi.csproj" />
     <Project Path="src/Sims.Contracts/Sims.Contracts.csproj" />
@@ -9,8 +12,10 @@
     <Project Path="src/Worker/Worker.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Sims.Logging.Tests/Sims.Logging.Tests.csproj" />
     <Project Path="tests/Sims.News.Api.Tests/Sims.News.Api.Tests.csproj" />
     <Project Path="tests/Sims.Shared.Tests/Sims.Shared.Tests.csproj" />
+    <Project Path="tests/Sims.Worker.Tests/Sims.Worker.Tests.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path="docker-compose.yml" />

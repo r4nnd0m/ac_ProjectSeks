@@ -1,0 +1,30 @@
+﻿C3 | Welche neuen Tickets entstehen aus den Funden?
+Für Leo | Abstimmung mit Stefan | Entwurf vom 07.11.2026
+
+D3 ruft C3 nach der Anreicherung der Funde auf. C3 braucht B1, C1 und Christians C4.
+
+Vorschlag für die Umsetzung
+
+Vorgeschlagener Aufruf: TicketCreator.CreateFor(project, findings, existingTickets, now).
+Der Worker liefert das Projekt samt TeamId, die Findings mit geladener Komponente, die
+vorhandenen relevanten Tickets und die aktuelle Zeit. C3 gibt eine Liste neuer, noch
+ungespeicherter C1-Tickets zurück. Stefan speichert sie zusammen mit Urteil, Funden und
+Scanstatus.
+
+Nach Projektanleitung führt Medium oder höher oder ein KEV-Treffer zu einem Ticket. Für
+Startstufe, Rolle und Frist verwendet C3 EscalationPolicy.StartFor aus C4. Zur
+Duplikatprüfung dienen Projekt, CVE (ersatzweise VulnId) und Komponentenname. Ein
+RiskAccepted-Ticket zählt als vorhanden, ein Closed-Ticket erlaubt ein neues. Bitte das
+Wiedererkennen über VulnId auch über mehrere Scans ermöglichen, wenn keine CVE vorliegt.
+
+Beispiel für die gemeinsame Prüfung
+
+Für einen High-Fund in Paket X entsteht beim ersten Scan genau ein Ticket. Ein neuer Scan
+desselben Projekts mit demselben Fund in X und noch offenem Ticket erzeugt null neue
+Tickets. Dieselbe Schwachstelle in einer anderen Komponente darf ein eigenes Ticket ergeben.
+
+Rückmeldung an Stefan
+
+Branch, Beispielaufruf mit geladenen Komponenten und Rückgabetyp für die neuen Tickets.
+Passt / gewünschte Änderung: _________________________________
+Branch, Commit oder geplanter Termin: ________________________

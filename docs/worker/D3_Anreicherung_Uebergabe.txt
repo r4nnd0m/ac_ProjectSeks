@@ -1,0 +1,101 @@
+SIMS Worker - D3: KEV, EPSS und Zuordnung zu OSV-Funden
+Stand: 06.11.2026. D3 ist teilweise implementiert, keine vollständige Abnahme.
+
+Umfang
+Die unabhängigen Schritte D3.1-D3.3 und die Zuordnung der Zusatzdaten sind vorhanden.
+Der ScanProcessor-Ablauf ist inzwischen vorbereitet; Details stehen in
+D3_Scanablauf_Uebergabe.txt. Im normalen Host bleibt UnconfiguredScanProcessor aktiv.
+Keine Shared-Entities, Urteilsregeln oder Ticket-Regeln wurden ersetzt.
+
+Öffentliche Worker-interne Schnittstellen (Namespace Worker.Enrichment)
+Task<HashSet<string>> IKevClient.GetKnownExploitedAsync(CancellationToken ct)
+Task<Dictionary<string, double>> IEpssClient.GetScoresAsync(
+    IReadOnlyList<string> cves, CancellationToken ct)
+Task<IReadOnlyList<EnrichedFinding>> IFindingEnricher.EnrichAsync(
+    IReadOnlyList<Worker.Osv.OsvFinding> findings, CancellationToken ct)
+EnrichedFinding(OsvFinding Finding, bool IsKev, double? Epss)
+
+Anschluss im späteren ScanProcessor
+1. B1-Component.Id/Purl auf die aktuelle Worker-Eingabe OsvComponent abbilden.
+2. var findings = await osv.FindVulnerabilitiesAsync(components, ct);
+3. var enriched = await enricher.EnrichAsync(findings, ct);
+4. Aus den Ergebnissen lokale B1-Finding-Entities erzeugen. ComponentId, VulnId,
+   Cve und Summary aus .Finding übernehmen; Severity ausdrücklich nach Namen
+   in B1-Severity abbilden; IsKev und Epss aus dem EnrichedFinding übernehmen.
+5. Danach B4-VerdictCalculator und C3-TicketCreator verwenden.
+Die Worker-Ergebnistypen sind keine EntityFramework-Entities. Endgültigen Vertrag
+mit B1 abstimmen; auch die vorläufige D2-Abweichung ist dort zu berücksichtigen.
+
+KEV
+- CISA-JSON von https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
+- Pflichtfelder count und vulnerabilities. Positive, passende Anzahl und gültige
+  CVE-Kennungen prüfen. Keine leere oder teilweise eingelesene Liste bei Fehlern.
+- HashSet mit StringComparer.OrdinalIgnoreCase. Mehrfach vorkommende IDs vereinigen.
+- KevCatalogCache ist Singleton, HttpClient-Instanzen bleiben kurzlebig.
+  IMemoryCache hält den Katalog 6 Stunden absolut, nicht gleitend.
+- Eine gemeinsame Semaphore verhindert gleichzeitige Mehrfachdownloads.
+  Wartende Aufrufer können abbrechen. Fehler/Abbruch werden nicht gespeichert.
+- Jeder Aufrufer bekommt eine Kopie des Sets. Abgelaufene Daten werden bei
+  fehlgeschlagenem Neuladen nicht als erfolgreiche Antwort weiterverwendet.
+- IsKev=false bedeutet kein Treffer im verwendeten Katalog. Es beweist nicht,
+  dass die Schwachstelle niemals ausgenutzt wurde.
+
+EPSS
+- FIRST-API: https://api.first.org/data/v1/epss?cve=...
+- Eingaben normalisieren und doppelte CVEs entfernen. Bis zu 50 pro Gruppe;
+  zusätzlich maximal 2000 Zeichen im cve-Parameter inklusive Kommas.
+- Eingaben entsprechen CVE-Jahr-laufendeNummer, maximal 50 Zeichen wie B1-Cve.
+- Explizite Parameter limit=50 und offset=0. status/status-code, total und
+  offset prüfen. total muss zur erhaltenen Datenliste passen; keine still
+  abgeschnittenen Ergebnisse. Fremde und doppelte CVEs werden abgelehnt.
+- Dictionary mit StringComparer.OrdinalIgnoreCase. InvariantCulture für Zahlen,
+  nur endliche Werte im Bereich 0..1. NaN, Infinity und Kommazahlen ablehnen.
+- Erfolgreiche Antwort ohne einzelne angefragte CVE: kein Eintrag dafür.
+  FindingEnricher lässt Epss dann null. Ein vorhandener Score 0 bleibt 0.
+- Ein späterer fehlerhafter Batch verwirft den ganzen Aufruf; keine Teilresultate.
+
+FindingEnricher
+Erhält OSV-Funde, lädt KEV und fragt EPSS für deren eindeutige CVEs ab.
+Reihenfolge, Komponentenbezug und ursprünglicher OsvFinding bleiben erhalten.
+Findings ohne CVE bleiben erhalten, mit IsKev=false und Epss=null.
+Erst nach erfolgreichen Abfragen wird die vollständige Ergebnisliste geliefert.
+Es entstehen weder Gesamturteile noch Tickets oder Datenbankänderungen.
+
+Registrierung und Fehler
+Program.cs: AddKevClient(), AddEpssClient(), AddScoped<IFindingEnricher, FindingEnricher>().
+AddKevClient registriert AddMemoryCache und den gemeinsamen KevCatalogCache.
+Neue Bibliothek: Microsoft.Extensions.Caching.Memory 10.0.14.
+Beide HTTP-Clients nutzen den Standard-Resilience-Handler wie OSV.
+Netzwerk-, Zeitlimit-, Status- und Protokollfehler werden zu
+KevUnavailableException bzw. EpssUnavailableException. Fremde Antworttexte werden
+nicht in eigene Logmeldungen übernommen. Ein gewünschter Abbruch bleibt ein Abbruch.
+
+Nächste Integration mit B1/B4/C3/C4
+- Höchstens 5 älteste Pending-Scans laden; Scanning am Anfang separat speichern.
+- Komponenten, OSV, Anreicherung, B4-Urteil, Projekt/offene Tickets und C3-Erstellung.
+- Findings/Tickets erst nach vollständigem Erfolg für die DB vormerken und dann
+  gemeinsam mit Scanned/FinishedAt/Verdict speichern.
+- Bei Quellenfehler Failed, kurzer allgemeiner Fehlertext und kein Urteil.
+  Keine halb vorbereiteten Findings/Tickets aus einem fehlgeschlagenen Versuch speichern.
+- Aufrufer-Abbruch weitergeben; unterbrochene Scans benötigen D1-Recovery.
+- Nach B1/B4/C3/C4-Integration Upload-Gesamttest, Fehlerpfade und Ticket-Duplikate prüfen.
+
+Validierung des ursprünglichen Anreicherungs-Schritts
+120 Tests bestanden: 107 Worker (davon 58 neue: 20 KEV, 34 EPSS, 4 Enricher),
+13 Logging. Solution mit 11 Projekten ohne Warnungen/Fehler gebaut.
+Live-Test mit den tatsächlich registrierten Clients am 06.11.2026:
+pkg:nuget/Newtonsoft.Json@12.0.1 -> CVE-2024-21907 / High / IsKev=false / Epss=0.32908.
+KEV-Katalog: 1768 Kennungen, Log4Shell/CVE-2021-44228 enthalten; zweiter Abruf aus Cache.
+Dies ist kein Upload-/SQL-Gesamttest und kein berechnetes Gesamturteil.
+Live-Daten können sich ändern; automatisierte Tests verwenden feste Antworten.
+
+Tests aus dem Repository-Ordner
+dotnet build sims.slnx
+dotnet test tests/Sims.Worker.Tests/Sims.Worker.Tests.csproj
+
+Primärquellen
+https://github.com/cisagov/kev-data
+https://api.first.org/epss/
+https://api.first.org/#response-object
+https://www.first.org/epss/
+https://learn.microsoft.com/en-us/dotnet/core/resilience/http-resilience

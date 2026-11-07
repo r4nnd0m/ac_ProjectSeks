@@ -1,0 +1,27 @@
+﻿C1 | Was ändert der Worker an einem Ticket?
+Für Leo | Abstimmung mit Stefan | Entwurf vom 07.11.2026
+
+C3 erzeugt C1-Tickets. D4 verwendet ihr Verhalten bei einer Eskalation.
+
+Vorschlag für die Umsetzung
+
+Wir schlagen vor, das gemeinsame Ticket aus Sims.Shared zu benutzen. D4 benötigt Id,
+Severity, Status, EscalationLevel, AssignedRole und DueAt sowie eine Möglichkeit, Closed und
+RiskAccepted als abgeschlossen zu erkennen.
+
+Ticket.Escalate(newLevel, assignedRole, newDueAt) übernimmt die Entscheidung von C4 und
+setzt den Status auf Escalated. Die Rolle am Ticket, z. B. Lead, ist unabhängig vom
+Benutzerkonto und dem Feld für den persönlichen Bearbeiter. Die Ticketmethode ändert das
+geladene Objekt. Der Worker speichert die Änderung zusammen mit dem Audit-Eintrag aus C5.
+
+Beispiel für die gemeinsame Prüfung
+
+Ein offenes Testticket mit Stufe 1 und leerer Rolle wird mit Escalate(2, "Lead", neueFrist)
+geändert. Es hat anschließend Stufe 2, Rolle Lead, den Status Escalated und die neue Frist.
+Der persönliche Bearbeiter wird dadurch keinem anderen Benutzer zugewiesen.
+
+Rückmeldung an Stefan
+
+Branch mit Ticketmodell, Konstruktion eines Testtickets und öffentlicher Escalate-Methode.
+Passt / gewünschte Änderung: _________________________________
+Branch, Commit oder geplanter Termin: ________________________
