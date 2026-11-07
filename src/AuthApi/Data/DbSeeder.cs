@@ -22,7 +22,7 @@ public static class DbSeeder
             }
         }
 
-        var team = await db.Teams.FirstOrDefaultAsync(t => t.Name == "Default");
+        Team? team = await db.Teams.FirstOrDefaultAsync(t => t.Name == "Default");
         if (team == null)
         {
             team = new Team { Name = "Default" };
