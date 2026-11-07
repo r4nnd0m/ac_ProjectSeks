@@ -1,10 +1,14 @@
+using System.Text;
 using AuthApi.Data;
 using AuthApi.Models;
 using AuthApi.Options;
 using AuthApi.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
+using Sims.Contracts;
 
 namespace sims;
 
@@ -45,6 +49,24 @@ public class Program
 
         builder.Services.AddSingleton<ITokenService, JwtTokenService>();
 
+        JwtOptions jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()!;
+
+        builder.Services
+            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(o =>
+            {
+                o.MapInboundClaims = false;
+                o.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidIssuer = jwt.Issuer,
+                    ValidAudience = jwt.Audience,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)),
+                    ClockSkew = TimeSpan.FromSeconds(30),
+                    RoleClaimType = ClaimNames.Role,
+                    NameClaimType = ClaimNames.Name
+                };
+            });
+
         var app = builder.Build();
 
         if (app.Configuration["Migrations:Run"] == "true")
@@ -79,22 +101,23 @@ public class Program
 
         app.Run();
     }
-    private static async Task MigrateWithRetryAsync(AuthDbContext db, ILogger log)
-        {
-            for (int i = 1; i <= 10; i++)
-            {
-                try
-                {
-                    await db.Database.MigrateAsync();
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    log.LogWarning("Versuch {Versuch} von 10 bei der Migration fehlgeschlagen: {Fehler}", i, ex.Message);
-                    await Task.Delay(TimeSpan.FromSeconds(5));
-                }
-            }
 
-            throw new Exception("Die Datenbank ist nach 10 Versuchen nicht erreichbar.");
+    private static async Task MigrateWithRetryAsync(AuthDbContext db, ILogger log)
+    {
+        for (int i = 1; i <= 10; i++)
+        {
+            try
+            {
+                await db.Database.MigrateAsync();
+                return;
+            }
+            catch (Exception ex)
+            {
+                log.LogWarning("Versuch {Versuch} von 10 bei der Migration fehlgeschlagen: {Fehler}", i, ex.Message);
+                await Task.Delay(TimeSpan.FromSeconds(5));
+            }
         }
+
+        throw new Exception("Die Datenbank ist nach 10 Versuchen nicht erreichbar.");
+    }
 }
