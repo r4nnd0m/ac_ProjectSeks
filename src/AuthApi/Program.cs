@@ -1,6 +1,7 @@
 using AuthApi.Data;
 using AuthApi.Models;
 using AuthApi.Options;
+using AuthApi.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
@@ -41,6 +42,8 @@ public class Program
             .Bind(builder.Configuration.GetSection("Jwt"))
             .Validate(o => o.Key.Length >= 32, "Der Key ist zu kurz!")
             .ValidateOnStart();
+
+        builder.Services.AddSingleton<ITokenService, JwtTokenService>();
 
         var app = builder.Build();
 
