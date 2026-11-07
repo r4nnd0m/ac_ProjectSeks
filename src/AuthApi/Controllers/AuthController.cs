@@ -1,10 +1,14 @@
+using System.Security.Claims;
 using AuthApi.Dtos;
 using AuthApi.Models;
 using AuthApi.Options;
 using AuthApi.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore.Infrastructure.Internal;
 using Microsoft.Extensions.Options;
+using Sims.Contracts;
 
 namespace AuthApi.Controllers;
 
@@ -49,5 +53,27 @@ public class AuthController : ControllerBase
         string token = _tokenService.CreateAccessToken(user, role, false);
 
         return Ok(new LoginResponse(token, _options.ExpiresMinutes * 60, false, null));
+    }
+
+    [Authorize]
+    [HttpGet("me")]
+    public async Task<IActionResult> Me()
+    {
+        string? id = User.FindFirstValue(ClaimNames.Sub);
+        if (id == null)
+        {
+            return Unauthorized();
+        }
+
+        ApplicationUser? user = await _userManager.FindByIdAsync(id);
+        if (user == null || !user.IsActive)
+        {
+            return Unauthorized();
+        }
+
+        IList<string> roles = await _userManager.GetRolesAsync(user);
+        string role = roles.Single();
+
+        return Ok(new MeResponse(user.Id,user.Email!, role, user.TeamId,user.TwoFactorEnabled));
     }
 }
