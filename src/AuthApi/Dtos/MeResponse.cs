@@ -1,4 +1,3 @@
 namespace AuthApi.Dtos;
 
-// TODO: A2: Felder laut Schnittstellen-Dokument
-public record MeResponse;
+public record MeResponse(Guid Id, string Email, string Role, Guid TeamId, bool MfaEnabled);
