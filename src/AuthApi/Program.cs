@@ -8,7 +8,7 @@ namespace sims;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +36,13 @@ public class Program
 
         var app = builder.Build();
 
+        if (app.Configuration["Migrations:Run"] == "true")
+        {
+            using var scope = app.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+            await MigrateWithRetryAsync(db, app.Logger);
+        }
+
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
@@ -52,4 +59,22 @@ public class Program
 
         app.Run();
     }
+    private static async Task MigrateWithRetryAsync(AuthDbContext db, ILogger log)
+        {
+            for (int i = 1; i <= 10; i++)
+            {
+                try
+                {
+                    await db.Database.MigrateAsync();
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    log.LogWarning("Versuch {Versuch} von 10 bei der Migration fehlgeschlagen: {Fehler}", i, ex.Message);
+                    await Task.Delay(TimeSpan.FromSeconds(5));
+                }
+            }
+
+            throw new Exception("Die Datenbank ist nach 10 Versuchen nicht erreichbar.");
+        }
 }
