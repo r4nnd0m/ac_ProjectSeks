@@ -1,0 +1,31 @@
+﻿F2 | SQL, Redis und Internetzugang für den Worker
+Rolle 6 | Urteil und Eskalation, Infrastruktur, Doku
+Ansprechperson: Christian | Entwurf vom 07.11.2026
+
+D1 braucht die lokalen Dienste. Der gemeinsame Lauf aller Dienste verwendet das Worker-Image
+aus F3.
+
+Vorschlag für die Umsetzung
+
+Vorschlag für den Compose-Lauf: Der Worker erreicht Microsoft SQL Server unter sql,1433 und
+Redis unter redis:6379. Die Konfiguration stellt ConnectionStrings__Sims und
+ConnectionStrings__Redis bereit. Die SQL-Verbindung verwendet die Datenbank sims.
+Zugangsdaten kommen aus der lokalen Konfiguration. Für die externe Abfrage von OSV, KEV und
+EPSS braucht der Worker ausgehendes HTTPS. Im geplanten Compose-Aufbau verbinden backend-net
+und egress-net den Worker entsprechend.
+
+Beim lokalen Start aus Visual Studio führen die veröffentlichten Ports über localhost zu SQL
+und Redis. Für den ersten Integrationslauf genau eine Worker-Instanz starten. Die
+SQL-Tabellen müssen dem abgestimmten Migrationsstand entsprechen.
+
+Beispiel für die gemeinsame Prüfung
+
+Nach Bereitstellung von F3 und SQL-Anbindung den Worker per Compose starten. Einen
+Pending-Testauftrag aus SQL lesen, aus dem Worker-Container die Quellen erreichen und eine
+Meldung mit Dienstname worker in Redis prüfen.
+
+Rückmeldung an Stefan
+
+Verwendete Compose-Datei und Variablennamen für den Worker.
+Passt / gewünschte Änderung: _________________________________
+Branch, Commit oder geplanter Termin: ________________________

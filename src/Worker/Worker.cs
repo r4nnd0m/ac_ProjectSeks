@@ -1,16 +1,75 @@
+using Microsoft.Extensions.Options;
+using Worker.Scanning;
+
 namespace Worker;
 
-public class Worker(ILogger<Worker> logger) : BackgroundService
+public class Worker(
+    IServiceScopeFactory scopes,
+    ILogger<Worker> logger,
+    IOptions<WorkerOptions> options,
+    TimeProvider clock) : BackgroundService
 {
+    private bool recoveryCompleted;
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        while (!stoppingToken.IsCancellationRequested)
+        var intervalSeconds = options.Value.PollIntervalSeconds;
+        logger.LogInformation(
+            "Worker gestartet. Arbeitsabstand: {PollIntervalSeconds} Sekunden.",
+            intervalSeconds);
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(intervalSeconds), clock);
+        long cycle = 0;
+
+        try
         {
-            if (logger.IsEnabled(LogLevel.Information))
+            // Der erste Durchlauf startet sofort, weitere folgen im eingestellten Abstand.
+            do
             {
-                logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
+                stoppingToken.ThrowIfCancellationRequested();
+                logger.LogInformation(
+                    "Worker-Durchlauf {Cycle}: Neustartprüfung bzw. Scan-Verarbeitung wird aufgerufen.",
+                    ++cycle);
+                await ProcessCycleAsync(stoppingToken);
             }
-            await Task.Delay(1000, stoppingToken);
+            while (await timer.WaitForNextTickAsync(stoppingToken));
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            // Strg+C beendet auch das Warten auf den nächsten Durchlauf.
+        }
+        finally
+        {
+            logger.LogInformation("Worker sauber beendet.");
+        }
+    }
+
+    private async Task ProcessCycleAsync(CancellationToken stoppingToken)
+    {
+        try
+        {
+            // Ein eigener Arbeitsbereich pro Durchlauf: später auch für den DbContext.
+            // AsyncScope räumt ebenso Dienste mit asynchronem Dispose zuverlässig auf.
+            await using var scope = scopes.CreateAsyncScope();
+            if (!recoveryCompleted)
+            {
+                await scope.ServiceProvider.GetRequiredService<IScanRecovery>().RecoverAsync(stoppingToken);
+                recoveryCompleted = true;
+            }
+            // Fehler in Recovery verhindert neue Scans. Nächster Takt versucht sie erneut.
+            var processor = scope.ServiceProvider.GetRequiredService<IScanProcessor>();
+            await processor.ProcessPendingAsync(stoppingToken);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            // Ein gewünschtes Beenden ist kein fehlgeschlagener Scan-Durchlauf.
+            throw;
+        }
+        catch (Exception exception)
+        {
+            // Auch die Konsolenausgabe soll keine fremden Fehlermeldungen mit Secrets enthalten.
+            logger.LogError(
+                "Scan-Durchlauf fehlgeschlagen ({ErrorType}). " +
+                "Der nächste Durchlauf wird erneut versucht.",
+                exception.GetType().Name);
         }
     }
 }

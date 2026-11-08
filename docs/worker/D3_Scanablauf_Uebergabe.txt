@@ -1,0 +1,105 @@
+SIMS Worker - vorbereiteter Scan-Ablauf und Neustartbehandlung
+Stand: 06.11.2026. Keine echte SQL-/B4-/C3-Integration; Verträge sind Worker-lokal.
+Ergänzt D2_OSV_Uebergabe.txt, D3_Anreicherung_Uebergabe.txt und D4_Eskalation_Uebergabe.txt.
+
+Vorhandener Ablauf
+Worker.ScanProcessor implementiert IScanProcessor.ProcessPendingAsync(ct).
+1. GetPendingAsync(5): höchstens fünf älteste wartende Aufträge.
+2. TryStartAsync: nur Pending -> Scanning; bereits gespeicherter Start vor Abfragen.
+   Bei false wird der Auftrag übersprungen. Batch-Reihenfolge CreatedAt, dann Id.
+3. Komponenten -> IOsvClient -> IFindingEnricher (bestehende KEV-/EPSS-Anreicherung).
+4. IScanVerdictCalculator.Calculate -> IScanTicketPlanner.PrepareAsync.
+5. CompleteAsync: Findings, neue Tickets, Verdict, FinishedAt und Scanned zusammen.
+6. Verarbeitungsfehler: FailAsync mit allgemeinem Text, FinishedAt, leerem Urteil;
+   keine vorbereiteten Findings/Tickets speichern. Danach nächster Auftrag im Batch.
+7. Angeforderter Abbruch: weitergeben, Scanning für Neustartbehandlung stehen lassen.
+
+Anschlüsse in src/Worker/Scanning/ScanPorts.cs
+PendingScan(Id, ProjectId, CreatedAt): nur eine Auftragsbeschreibung, keine B1-Entity.
+ScanVerdict: Go, GoWithConditions, NoGo; ausdrücklich nach Namen zu B1/B4 abbilden.
+IPreparedScanTickets.Count: Hülle für NEUE, noch nicht gespeicherte C1-Tickets.
+ScanCompletion: vollständige angereicherte Findings + Urteil + Tickethülle + FinishedAt.
+IScanStore: GetPendingAsync, TryStartAsync, GetComponentsAsync, CompleteAsync,
+  FailAsync und ResetInterruptedAsync. Methoden sind echte Speichergrenzen.
+IScanVerdictCalculator: dünner B4-Adapter, keine zweite Regelauswertung.
+IScanTicketPlanner: Projekt, Komponentenbezug und vorhandene Tickets laden; C3
+  aufrufen, vorbereitete neue Entities in einer eigenen Tickethülle zurückgeben.
+  Der Planner speichert nichts. Deduplizierung gehört weiterhin zu C3.
+
+Hinweise für B1-/C3-Adapter
+- GetPendingAsync muss bereits in SQL Pending filtern, CreatedAt/Id sortieren und
+  Take(limit) anwenden. Nicht erst alle Scans aus SQL laden.
+- TryStartAsync bedingt auf Pending schreiben und Erfolg anhand betroffener Zeilen
+  feststellen. Verdict/ErrorMessage/FinishedAt des alten Versuchs leeren.
+- GetComponentsAsync liefert OsvComponent(Id, Purl), einschließlich Version in Purl.
+- B1-Findings aus EnrichedFinding erzeugen. OsvSeverity/ScanVerdict explizit mappen.
+- Der Ticket-Planner braucht für C3 auch Projekt und Komponentenname. Diese Daten
+  aus B1 nachladen bzw. eindeutig anhand ComponentId zuordnen; Purl nicht als neuen
+  fachlichen Deduplizierungsschlüssel erfinden. C3 verwaltet seine Regeln selbst.
+- CompleteAsync prüft Scanning und speichert ALLE Enddaten atomar; niemals Teil-Findings
+  vorher speichern. Die Tickethülle muss zu genau diesem Adapter passen.
+- FailAsync verwendet einen sauberen Schreibbereich ohne getrackte Fehlversuchs-
+  Entities. Kein SaveChanges auf einem Context voller teilweise vorbereiteter Tickets.
+- Geeignet ist ein frischer DbContext je Speicheroperation (z.B. Factory/eigener Scope).
+  Alternativ muss das Team die Tracking-/Transaktionsgrenzen gleichwertig sicherstellen.
+- ResetInterruptedAsync setzt nur Scanning -> Pending und leert Versuch-Metadaten;
+  keine Scanned-/Failed-Aufträge oder bereits abgeschlossenen Ergebnisse löschen.
+- Das ist eine Vorgabe an den künftigen Adapter, noch KEIN geprüfter SQL-Code.
+
+Speicherfehler sind ein eigener Abstimmungspunkt
+Ein Fehler bei GetPending/TryStart/Fail/Complete geht an den Job; der Batch endet.
+Ein Complete-Fehler kann bedeuten, dass die Commit-Antwort verloren ging. Deshalb
+schreibt der Processor danach nicht blind Failed über einen eventuell fertigen Scan.
+Es wird auch kein Erfolg geloggt. Ein tatsächlich verbliebenes Scanning wird beim
+Neustart zurückgesetzt. Ein bereits gespeichertes Scanned bleibt abgeschlossen.
+SQL-Transaktion, unklarer Commit-Ausgang und gezielte Wiederaufnahme müssen im Team
+mit dem echten Provider getestet werden. Dies geht über reine Quellenfehler hinaus.
+Kein automatischer Reset aller Scanning-Aufträge in jedem Poll-Durchlauf.
+
+Neustartablauf D1
+IScanRecovery.RecoverAsync wird im Worker vor dem ersten Scan aufgerufen.
+ScanRecovery ruft IScanStore.ResetInterruptedAsync auf und meldet die Anzahl.
+Bei Recovery-Fehler: keine Scans starten, Scope entsorgen, im nächsten Poll-Takt
+erneut versuchen. Nach Erfolg wird Recovery in dieser Worker-Instanz nicht wiederholt.
+Abbruch beendet auch Recovery. TimeProvider steuert jetzt ebenso den Scan-Timer.
+Das vorgesehene Reset-Verhalten setzt EINE aktive Worker-Instanz voraus. Gleichzeitige
+Instanzen und konkurrierende Ticketänderungen brauchen weitergehende Abstimmung.
+
+Aktuelle Registrierung
+Program.cs nutzt weiterhin UnconfiguredScanProcessor und UnconfiguredScanRecovery.
+Kein Fake-Store und keine Testregeln werden in der normalen Anwendung registriert.
+Später: IScanStore / IScanVerdictCalculator / IScanTicketPlanner als Scoped registrieren,
+IScanProcessor -> ScanProcessor und IScanRecovery -> ScanRecovery umstellen.
+Zusätzlich B1 AddSimsDatabase, B4 AddVerdictRules, C4 AddEscalation und C3/C5 einbinden.
+Alle Namen, Datentypen und Speichergrenzen mit dem Team prüfen, bevor aktiviert wird.
+
+Validierung
+166 Worker-Tests bestanden, davon 36 neue Fälle (31 Scan/Recovery, 5 Worker-Recovery).
+Die 12 Projekte bauen ohne Fehler/Warnungen. Bestehende Host-/Heartbeat-Tests an den
+neuen Pflichtanschluss angepasst. Die ursprünglichen 13 Logger-Tests sind unverändert.
+Getestet: Reihenfolge, Batch-Grenze, Duplikate in der Auftragsliste, geänderter Status,
+leere Queue/Findings, Quellen-/Regel-/Speicherfehler, Abbruch, Metadatenübergabe,
+Recovery vor Scan, Retry nach Recovery-Fehler und kein erneutes Reset pro Poll.
+Ein Test simuliert erfolgreich gespeicherte Daten mit anschließend verloren gegangener
+Antwort. Es erfolgt kein überschreibendes Failed. Kein echter SQL-Transaktionstest.
+
+Offline-Demo
+examples/Sims.Worker.Demo ist ein eigenes Konsolenprojekt. Es referenziert den echten
+ScanProcessor, FindingEnricher, ScanRecovery und EscalationProcessor; Speicher,
+Quellenantworten und B4/C3/C4-Regeln sind klar benannte Demo-Umsetzungen.
+2 Scanned, 1 Failed ohne Urteil, 2 Demo-Tickets Stufe 3, 4 Demo-Audit-Einträge; Exit 0.
+Stefans eigener PowerShell-Aufruf mit SDK 10.0.403 bestätigt diesen Endzustand ebenfalls.
+Der zweite Scan-Durchlauf verarbeitet abgeschlossene Aufträge nicht erneut. Das ist
+KEIN Nachweis der fachlichen C3-Deduplizierung bei einem NEUEN Wiederholungsscan.
+Demo ohne SQL/Redis/Internet ausgeführt. Normalen Host ebenfalls gestartet: Redis
+verbunden, Platzhalter sichtbar, Strg+C mit beiden sauberen Abschlussmeldungen.
+
+Weiterhin offen
+Echte Team-Adapter, Microsoft-SQL-Konfiguration/Schema/Migrationen, Provider- und
+Transaktionstests, C3-Deduplizierung, B4/C4-Regeln, C5-Audit, Upload-/API-Gesamttest.
+Die Arbeitsweise wurde anhand der Aufgaben-PDF und lokaler Klassen vorbereitet,
+aber nicht als endgültiger gemeinsamer Schnittstellenvertrag vereinbart.
+
+Technische Referenzen
+https://learn.microsoft.com/en-us/ef/core/saving/transactions
+https://learn.microsoft.com/en-us/dotnet/core/extensions/scoped-service

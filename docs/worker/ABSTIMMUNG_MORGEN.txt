@@ -1,0 +1,68 @@
+SIMS Worker - Gesprächsnotizen für die Team-Abstimmung
+Vorbereitet am 06.11.2026. Offene Fragen, keine bereits getroffenen Vereinbarungen.
+
+So kannst du deinen Stand in etwa 30 Sekunden erklären
+"Mein Worker hat die Zeitsteuerung, Redis-Logging, die OSV-/KEV-/EPSS-Abfragen und
+einen getesteten Scan- und Eskalationsablauf. Solange eure gemeinsamen Klassen fehlen,
+teste ich die Abläufe mit Ersatzanschlüssen. Eine Offline-Demo zeigt auch Fehler,
+Neustart und Eskalation. Die echten Datenbank- und Regelanschlüsse müssen wir jetzt
+abgleichen. Der normale Worker verwendet deshalb noch sichtbare Platzhalter."
+
+1. Welcher gemeinsame Stand ist verfügbar?
+   Von B1/B4/C1/C3/C4/C5 jeweils Branch oder Commit, zuständige Person und Zeitpunkt
+   für die Übernahme festhalten. Aktuell fehlen diese Klassen in unserem Worker-Branch.
+   Nicht daraus schließen, dass niemand sie auf einem anderen Branch fertig hat.
+   Entscheidung/Owner/Termin: _______________________________________________
+
+2. B1: Wie schließen wir Microsoft SQL Server an?
+   Welche DbContext-/Entity-Namen und AddSimsDatabase-Signatur gelten? Welche
+   Datenbank und Konfigurationsnamen? Wer erstellt/führt Migrationen aus?
+   Die lokale .env enthält noch PostgreSQL-Verbindungsstrings für andere Dienste;
+   SQL-Container läuft bereits, aber das allein schließt den Worker nicht an.
+   Verbindung lokal (localhost) versus im Container (sql) festlegen.
+   Entscheidung/Owner/Termin: _______________________________________________
+
+3. B1: Was wird gemeinsam gespeichert und was passiert nach Abbruch?
+   Startstatus Scanning separat. Endergebnis samt Findings/Tickets/Urteil atomar.
+   Fehlerstatus ohne halbe Entities. Ein Worker darf beim Start Scanning -> Pending
+   zurücksetzen. Genau EINE aktive Worker-Instanz für den ersten Projektstand bestätigen.
+   Unklarer Commit-Ausgang separat testen: nicht blind Erfolg mit Failed überschreiben.
+   Entscheidung/Owner/Termin: _______________________________________________
+
+4. B4 und C3: Welche Ein-/Ausgaben erwarten eure Methoden?
+   Welche Finding-/Severity-/Verdict-Typen? B4-Einstellungen und EPSS-Grenzwert?
+   C3 bekommt Projekt, Findings, Komponentenbezug und bestehende Tickets. Liefert
+   CreateFor nur neue Tickets und speichert NICHT selbst? Welche Tickets zählen
+   für Duplikaterkennung (einschließlich RiskAccepted)? Gemeinsamen Testfall wählen.
+   Unsere Wrapper/Enums sind vorläufig und können an den Team-Code angepasst werden.
+   Entscheidung/Owner/Termin: _______________________________________________
+
+5. C1/C4/C5: Wie verbinden wir Eskalation und Audit?
+   Ticket.Escalate, NextLevel/StartFor, konfigurierbare Fristen und Rollen abgleichen.
+   AuditService.Record soll nur vormerken; Ticket und Audit gemeinsam speichern.
+   Systemnutzer Guid.Empty / "SIMS Worker", Action TicketEscalated bestätigen.
+   Closed/RiskAccepted und Stufe 3 werden nicht weiter eskaliert.
+   Entscheidung/Owner/Termin: _______________________________________________
+
+6. Auth-/Scan-API: Redis-Logger gemeinsam übernehmen
+   AddRedis(mux, "auth-api") bzw. "scan-api". Übergabe D1_Logging_Uebergabe.txt.
+   Wie kommt Sims.Logging aus dem Worker-Branch in den gemeinsamen Stand?
+   Entscheidung/Owner/Termin: _______________________________________________
+
+7. Ein gemeinsamer Abnahmetest und die Übernahme in main
+   Welches Beispiel-SBOM/Projekt nutzen wir? Wer startet die Scan-API und wer prüft
+   Ergebnisse/Tickets? Testfolge: Erfolg, Quellenfehler, neuer Wiederholungsscan
+   ohne doppelte Tickets, Worker-Neustart, Eskalation mit kurzer Testfrist und Audit.
+   Danach Review/PR/Merge absprechen. Der Worker wurde bisher nicht nach main gemergt.
+   Entscheidung/Owner/Termin: _______________________________________________
+
+Mitnehmen / zeigen
+- docs/worker/DEMO_Anleitung.txt: ausführbarer Probelauf ohne Teamdienste.
+- D2_OSV_Uebergabe.txt und D3_Anreicherung_Uebergabe.txt: externe Abfragen.
+- D3_Scanablauf_Uebergabe.txt: neue Worker-Verträge, Recovery, Speichergrenzen.
+- D4_Eskalation_Uebergabe.txt: Ticket-/Policy-/Audit-Adapter.
+- D1_Logging_Uebergabe.txt: gemeinsamer Logger-Anschluss.
+
+Ziel des Treffens: konkrete gemeinsame Namen, Speicherverhalten und verfügbare
+Commits festhalten. News-Feed und fremde APIs werden nicht von Stefan implementiert.
+Diese Notizen wurden nicht automatisch an andere Teammitglieder geschickt.

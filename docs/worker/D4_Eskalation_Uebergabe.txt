@@ -1,0 +1,112 @@
+SIMS Worker - D4: vorbereitete Eskalation und benötigte Team-Adapter
+Stand: 06.11.2026. Teilimplementierung, keine vollständige D4-Abnahme.
+
+Vorhanden unter src/Worker/Escalation (Namespace Worker.Escalation)
+- EscalationJob: BackgroundService, sofortiger erster Durchlauf, danach 60-Sekunden-
+  PeriodicTimer mit TimeProvider. Eigener AsyncScope je Durchlauf, kein Überlappen.
+- IEscalationProcessor.RunAsync(CancellationToken ct).
+- EscalationProcessor: Laden -> Prüfen -> Regel fragen -> Ticket ändern -> Audit
+  vormerken -> einmal gemeinsam speichern. Verwendet keine eigene Systemzeit.
+- EscalationPorts.cs: vorläufige Worker-interne Anschlüsse, siehe unten.
+- UnconfiguredEscalationProcessor: ausdrücklich sichtbarer Platzhalter im normalen
+  Worker-Start. Kein Datenbankzugriff und keine Ticketänderungen.
+
+Laufzeitregistrierung
+Program.cs registriert IEscalationProcessor -> UnconfiguredEscalationProcessor
+als Scoped sowie EscalationJob als HostedService. Der vorbereitete echte
+EscalationProcessor ist noch nicht registriert, weil seine Team-Adapter fehlen.
+Es gibt drei unabhängige Jobs: Scan (normalerweise 30 s), Eskalation (60 s),
+Heartbeat (5 min). Strg+C beendet sie. Keine zusätzlichen NuGet-Pakete erforderlich.
+
+Worker-interne Anschlüsse: keine Ersatz-Entities oder Regelimplementierungen
+IEscalationTicket: Id, IsFinished, EscalationLevel, DueAt sowie
+  Escalate(int newLevel, string assignedRole, DateTimeOffset? newDueAt).
+IEscalationStore:
+  Task<IReadOnlyList<IEscalationTicket>> GetDueTicketsAsync(now, ct)
+  Task SaveChangesAsync(ct)
+IEscalationPolicy:
+  EscalationStep? NextLevel(IEscalationTicket ticket, DateTimeOffset now)
+EscalationStep(int Level, string AssignedRole, DateTimeOffset? DueAt)
+IEscalationAudit:
+  void RecordEscalation(EscalationAuditEntry entry)
+EscalationAuditEntry(UserId, UserName, TicketId, FromLevel, ToLevel)
+  Details ergibt z.B. "Stufe 1 auf 2".
+
+Adapter zu B1/C1
+Ein Ticket-Wrapper hält das tatsächliche getrackte C1-Ticket und delegiert seine
+Eigenschaften/Methoden. IsFinished muss Closed UND RiskAccepted umfassen.
+Escalate ruft die gemeinsame C1-Methode auf. Keine DTO-Kopie statt Entity ändern.
+Der Store verwendet den Scoped SimsDbContext. Abfrage:
+Status != Closed && Status != RiskAccepted && DueAt != null && DueAt < now
+&& EscalationLevel < 3. Die Entity-Ergebnisse in Ticket-Wrapper einhüllen.
+Der Processor prüft diese Bedingungen zusätzlich an seiner Grenze.
+SaveChangesAsync muss denselben Context verwenden, den auch der AuditService nutzt.
+
+Adapter zu C4
+AddEscalation(config) aus Sims.Shared registrieren. C4 ist allein verantwortlich für
+EscalationOptions, CriticalHours/HighHours/MediumHours, Rollen und neue Fristen.
+Der Policy-Adapter nimmt aus dem Ticket-Wrapper das ursprüngliche gemeinsame Ticket,
+ruft die C4-EscalationPolicy.NextLevel(ticket, now) auf und bildet deren optionales
+Ergebnis auf Worker.Escalation.EscalationStep ab. null unverändert weitergeben.
+Die vollständige C1-Entity enthält die Schweregrad-Information, die C4 braucht;
+sie soll nicht in einer zweiten Worker-Entity dupliziert werden.
+Namensgleichheit EscalationStep beachten: Namespace bzw. using-Alias eindeutig halten.
+
+Adapter zu C5
+RecordEscalation ruft ausschließlich
+AuditService.Record(entry.UserId, entry.UserName, AuditActions.TicketEscalated,
+                    entry.TicketId, entry.Details)
+auf. Die Action-Konstante kommt aus C5, nicht als neuer Text im Worker.
+UserId ist Guid.Empty und UserName "SIMS Worker". Noch nicht selbst speichern.
+Store, Ticket-Wrapper und Audit müssen denselben Scoped DbContext teilen.
+Am Ende des Durchlaufs ein SaveChangesAsync für Ticketänderungen und Audit zusammen.
+Bei Fehlern wird der Scope verworfen. Tatsächliche Transaktion/Rollback mit SQL testen.
+
+Erst danach aktivieren
+- Echte Store-/Policy-/Audit-Adapter als Scoped registrieren, C4/C5 einbinden.
+- In Program.cs den Platzhalter ersetzen durch
+  AddScoped<IEscalationProcessor, EscalationProcessor>().
+- Den HostedService EscalationJob beibehalten.
+- Beim späteren Anschluss dürfen die Worker-internen Ports gemeinsam angepasst oder
+  durch direkte gemeinsame Typen ersetzt werden; sie sind kein externes API-Versprechen.
+
+Verhalten bei Fehlern
+Auswahl, Policy, Ticketmethode und Audit dürfen Fehler nach außen melden.
+Der Processor speichert nicht vorzeitig und protokolliert Erfolg erst nach Save.
+Ein angeforderter Abbruch wird weitergegeben. Der Job entsorgt den Scope, loggt
+sonstige Fehler nur mit Typ und setzt den nächsten Durchlauf fort.
+Es wird kein einzelnes Ticket aus einem fehlerhaften Durchlauf separat gespeichert.
+Bei einem Datenbankfehler beim Commit muss der echte Adapter die Atomarität sicherstellen.
+
+Validierung dieses Standes
+130 Worker-Tests bestanden, darunter 23 neue D4-Fälle: 17 Processor, 6 Job.
+Build der 11 Projekte ohne Warnungen/Fehler. Unveränderte 13 Logger-Tests waren
+zuvor erfolgreich; keine zusätzliche Paketabhängigkeit in diesem Schritt.
+Testfälle: fertig/akzeptiert, keine/zukünftige/exakt gleiche Frist, Stufe 3,
+vorgegebene Stufen 1->2->3, Übernahme von Rollen/Fristen, System-Audit, ein Speicher-
+aufruf, Null-Entscheidung, Fehler und Abbruch ohne vorzeitiges Speichern,
+60-Sekunden-Takt, neue/entsorgte Scopes, kein Überlappen, Weiterlaufen nach Fehler.
+Tests verwenden vorbereitete C4-Antworten und Test-Speicherung. Sie bestätigen
+keine echten C4-Fristenregeln, SQL-Transaktionen oder produktiven Audit-Einträge.
+Echter Worker-Start mit Redis, drei Jobs und D4-Platzhalter sowie sauberes Stoppen
+beobachtet. Der 60-Sekunden-Takt wurde mit Testuhr geprüft. Zusätzlich zeigt der
+manuelle Visual-Studio-Lauf zwei D4-Aufrufe, vier Scan-Durchläufe, beide sauberen
+Abschlussmeldungen und Worker.exe-Exitcode 0. Der Logausschnitt enthält keine
+Zeitstempel zur Messung des genauen Zeitabstands. Weiterhin keine echten Tickets.
+
+Noch nötiger Gesamttest
+C4 HighHours=0.01 (36 s) konfigurieren und ein echtes High-Ticket anlegen.
+Beim nächsten 60-Sekunden-Durchlauf Stufe 2/Lead/Escalated samt Audit erwarten,
+nach weiterer abgelaufener Frist Stufe 3/Admin/keine Frist samt zweitem Audit.
+Exakt DueAt == now genügt nicht; geprüft wird DueAt < now.
+Closed/RiskAccepted, KEV-Ticket auf Stufe 3 und Tickets ohne Frist unverändert lassen.
+Fehler vor und während Save prüfen: keine halbe Änderung ohne Audit oder umgekehrt.
+Für das MVP nur eine Worker-Instanz; Mehrfachinstanzen brauchen spätere Konkurrenzkontrolle.
+
+Prüfen aus dem Repository-Ordner
+dotnet build sims.slnx
+dotnet test tests/Sims.Worker.Tests/Sims.Worker.Tests.csproj --filter FullyQualifiedName~Escalation
+
+Primärquellen zur technischen Umsetzung
+https://learn.microsoft.com/en-us/dotnet/core/extensions/scoped-service
+https://learn.microsoft.com/en-us/dotnet/api/system.threading.periodictimer.-ctor?view=net-10.0

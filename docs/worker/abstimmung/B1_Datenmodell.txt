@@ -1,0 +1,34 @@
+﻿B1 | Gemeinsames Datenmodell und Microsoft SQL Server
+Für Patrik | Abstimmung mit Stefan | Entwurf vom 07.11.2026
+
+D1, D2, D3 und D4 lesen und speichern mit den gemeinsamen Datenmodellen.
+
+Vorschlag für die Umsetzung
+
+Wir schlagen SimsDbContext und AddSimsDatabase(connectionString) in Sims.Shared vor, wie in
+der Projektanleitung beschrieben. Scan-API und Worker verwenden Microsoft SQL Server,
+Datenbank sims, Schema scan und den Schlüssel ConnectionStrings:Sims. Bitte die geplante
+Migration und den Startweg für die lokale Datenbank mitgeben.
+
+Der Worker braucht den Weg von Scan.Id über ProjectId zum Projekt sowie von jeder Komponente
+und jedem Finding zurück zum Scan. Die Komponente liefert Id, Name, Version und Purl. Ein
+Finding hat unter anderem ComponentId, VulnId, optionale Cve, Severity, IsKev und den
+optionalen EPSS-Wert.
+
+Stefan schreibt den SQL-Anschluss im Worker. Er speichert Scanning vor der Quellenabfrage.
+Am Ende gehören Findings, neue Tickets, Urteil, FinishedAt und Scanned in dieselbe
+Transaktion. Bei einem Quellenfehler speichert er Failed mit Fehlerhinweis und
+Abschlusszeit. Bei einem unterbrochenen Lauf setzt der nächste Start Scanning auf Pending
+zurück. Dafür ist zunächst eine aktive Worker-Instanz vorgesehen.
+
+Beispiel für die gemeinsame Prüfung
+
+B2 legt einen Auftrag an. Der Worker findet genau diesen Auftrag und dessen Komponenten in
+derselben Datenbank. Falls das Speichern der Ergebnisse fehlschlägt, bleibt der vorherige
+Zustand vollständig erhalten.
+
+Rückmeldung an Stefan
+
+Link zum gemeinsamen Modell, Connection-String-Schlüssel und Migration.
+Passt / gewünschte Änderung: _________________________________
+Branch, Commit oder geplanter Termin: ________________________
