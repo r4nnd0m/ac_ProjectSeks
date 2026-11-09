@@ -1,9 +1,14 @@
 using System.Security.Claims;
 using AuthApi.Dtos;
 using AuthApi.Models;
+using AuthApi.Options;
+using AuthApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.IdentityModel.Tokens;
 using Sims.Contracts;
 
 namespace AuthApi.Controllers;
@@ -13,10 +18,17 @@ namespace AuthApi.Controllers;
 public class MfaController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly ITokenService _tokenService;
+    private readonly JwtOptions _options;
 
-    public MfaController(UserManager<ApplicationUser> userManager)
+    public MfaController(
+        UserManager<ApplicationUser> userManager,
+        ITokenService tokenService,
+        IOptions<JwtOptions> options)
     {
         _userManager = userManager;
+        _tokenService = tokenService;
+        _options = options.Value;
     }
 
     [Authorize]
@@ -86,4 +98,5 @@ public class MfaController : ControllerBase
         await _userManager.SetTwoFactorEnabledAsync(user, true);
         return NoContent();
     }
+    
 }
