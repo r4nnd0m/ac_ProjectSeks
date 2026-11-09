@@ -55,7 +55,7 @@ public class JwtTokenService : ITokenService
         List<Claim> claims = new List<Claim>
         {
             new Claim(ClaimNames.Sub, user.Id.ToString()),
-            new Claim("purpose", "mfa")
+            new Claim(MfaTokenConstants.PurposeClaim, MfaTokenConstants.PurposeValue)
         };
         
         SymmetricSecurityKey key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.Key));
@@ -64,7 +64,7 @@ public class JwtTokenService : ITokenService
         SecurityTokenDescriptor descriptor = new SecurityTokenDescriptor
         {
             Issuer = _options.Issuer,
-            Audience = "sims-mfa",
+            Audience = MfaTokenConstants.Audience,
             Subject = new ClaimsIdentity(claims),
             Expires = DateTime.UtcNow.AddMinutes(5),
             SigningCredentials = credentials

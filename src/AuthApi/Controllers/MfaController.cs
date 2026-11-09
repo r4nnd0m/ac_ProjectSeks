@@ -106,7 +106,7 @@ public class MfaController : ControllerBase
         TokenValidationParameters parameters = new TokenValidationParameters
         {
             ValidIssuer = _options.Issuer,
-            ValidAudience = "sims-mfa",
+            ValidAudience = MfaTokenConstants.Audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.Key)),
             ClockSkew = TimeSpan.FromSeconds(30)
         };
@@ -116,8 +116,8 @@ public class MfaController : ControllerBase
             return Unauthorized();
         }
 
-        string? purpose = result.ClaimsIdentity.FindFirst("purpose")?.Value;
-        if (purpose != "mfa")
+        string? purpose = result.ClaimsIdentity.FindFirst(MfaTokenConstants.PurposeClaim)?.Value;
+        if (purpose != MfaTokenConstants.PurposeValue)
         {
             return Unauthorized();
         }
