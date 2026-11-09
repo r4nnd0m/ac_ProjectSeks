@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text;
 using AuthApi.Dtos;
 using AuthApi.Models;
 using AuthApi.Options;
@@ -98,5 +99,41 @@ public class MfaController : ControllerBase
         await _userManager.SetTwoFactorEnabledAsync(user, true);
         return NoContent();
     }
-    
+
+    [HttpPost("verify")]
+    public async Task<IActionResult> Verify(MfaVerifyRequest request)
+    {
+        TokenValidationParameters parameters = new TokenValidationParameters
+        {
+            ValidIssuer = _options.Issuer,
+            ValidAudience = "sims-mfa",
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.Key)),
+            ClockSkew = TimeSpan.FromSeconds(30)
+        };
+        TokenValidationResult result = await new JsonWebTokenHandler().ValidateTokenAsync(request.MfaToken, parameters);
+        if (!result.IsValid)
+        {
+            return Unauthorized();
+        }
+
+        string? purpose = result.ClaimsIdentity.FindFirst("purpose")?.Value;
+        if (purpose != "mfa")
+        {
+            return Unauthorized();
+        }
+
+        string? id = result.ClaimsIdentity.FindFirst(ClaimNames.Sub)?.Value;
+        if (id == null)
+        {
+            return Unauthorized();
+        }
+
+        ApplicationUser? user = await _userManager.FindByIdAsync(id);
+        if (user == null || !user.IsActive || await _userManager.IsLockedOutAsync(user))
+        {
+            return Unauthorized();
+        }
+
+        return Ok();
+    }
 }
