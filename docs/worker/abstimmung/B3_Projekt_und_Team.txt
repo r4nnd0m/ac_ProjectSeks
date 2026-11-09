@@ -1,0 +1,27 @@
+﻿B3 | Zu welchem Projekt und Team gehört der Scan?
+Für Patrik | Abstimmung mit Stefan | Entwurf vom 07.11.2026
+
+B3 liefert den Projekt- und Teambezug über B2. D3 braucht ihn beim Erstellen von Tickets.
+
+Vorschlag für die Umsetzung
+
+Wir schlagen vor, Project.Id und Project.TeamId als gemeinsamen Bezug zu verwenden. B3 prüft
+beim API-Zugriff, welche Projekte der angemeldete Benutzer sehen darf. B2 legt den Scan mit
+der ermittelten ProjectId an. Stefan lädt im Worker das zugehörige Projekt und gibt es an C3
+weiter. Das automatisch erzeugte Ticket erhält seine TeamId vom Projekt.
+
+Beispiel: Projekt P gehört Team Blau. Der Upload erzeugt Scan S für P. Alle aus S erzeugten
+Tickets gehören zu P und Team Blau. Der Worker braucht dazu das Projektmodell aus
+Sims.Shared. Die Prüfung des angemeldeten Benutzers übernimmt die API.
+
+Beispiel für die gemeinsame Prüfung
+
+Mit einem Benutzer aus Team Blau für P hochladen. Beim erzeugten Ticket ProjectId und TeamId
+vergleichen. Ein gewöhnlicher Benutzer eines anderen Teams bekommt über die API keinen
+Zugriff auf P.
+
+Rückmeldung an Stefan
+
+Branch mit Projektmodell und ein Projekt, das wir beim gemeinsamen Test benutzen dürfen.
+Passt / gewünschte Änderung: _________________________________
+Branch, Commit oder geplanter Termin: ________________________

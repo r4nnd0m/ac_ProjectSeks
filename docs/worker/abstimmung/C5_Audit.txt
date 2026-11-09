@@ -1,0 +1,29 @@
+﻿C5 | Nachweis einer Ticketeskalation
+Rolle 3 | Scan-API B
+Ansprechperson: Leo | Entwurf vom 07.11.2026
+
+D4 benötigt die Audit-Aktion und den gemeinsamen AuditService.
+
+Vorschlag für die Umsetzung
+
+Vorschlag nach Projektanleitung: AuditService.Record(userId, userName, action, ticketId,
+details) fügt den Eintrag demselben SimsDbContext hinzu, den der Worker für die
+Ticketänderung verwendet. C5 liefert die Konstante AuditActions.TicketEscalated. D4
+speichert Ticket und Änderungsnachweis gemeinsam in einer SQL-Transaktion.
+
+Für den Auslöser verwenden wir Guid.Empty und den Namen "SIMS Worker". ticketId bezeichnet
+das konkrete Ticket. details nennt die Stufen, z. B. "Stufe 1 auf 2". So kann das Team
+später nachvollziehen, wer die Zuständigkeit geändert hat. Technische Redis-Meldungen sind
+getrennt davon abrufbar.
+
+Beispiel für die gemeinsame Prüfung
+
+Bei einem Wechsel von Stufe 1 zu 2 entsteht genau ein passender Nachweis. Beim nächsten
+Durchlauf vor der neuen Frist entsteht keiner. Simulierter Fehler vor dem Speichern: Ticket
+und Audit bleiben auf dem vorherigen SQL-Stand.
+
+Rückmeldung an Stefan
+
+Branch, Registrierung und Bestätigung des gemeinsamen Speichervorgangs.
+Passt / gewünschte Änderung: _________________________________
+Branch, Commit oder geplanter Termin: ________________________

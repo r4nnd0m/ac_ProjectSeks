@@ -1,0 +1,4 @@
+# Vite-Ausgabe und Werkzeug-Zustand des Frontends
+dist/
+coverage/
+*.tsbuildinfo

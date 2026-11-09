@@ -1,7 +1,15 @@
-
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
+using ScanApi.Extensions;
+using ScanApi.Services;
+using Sims.Contracts;
+using Sims.Shared.Data;
+using System.Text;
+using System.Text.Json.Serialization;
 
-namespace sims;
+namespace ScanApi;
 
 public class Program
 {
@@ -9,28 +17,391 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
-        // Add services to the container.
+        builder.Services.AddControllers().AddJsonOptions(options =>
+        {
+            options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        });
 
-        builder.Services.AddControllers();
-        // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();
+        builder.Services.AddSimsSecurity();
+
+        var jwtKey = builder.Configuration["Jwt:Key"] ?? "12345678901234567890123456789012";
+        var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "sims-auth";
+        var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "sims-api";
+
+        builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                options.MapInboundClaims = false;
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidIssuer = jwtIssuer,
+                    ValidAudience = jwtAudience,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ClockSkew = TimeSpan.FromSeconds(30),
+                    RoleClaimType = ClaimNames.Role,
+                    NameClaimType = ClaimNames.Name
+                };
+            });
+
+        builder.Services.AddAuthorization(options =>
+        {
+            options.AddPolicy(Policies.AdminOnly, policy => policy.RequireRole(Roles.Admin));
+            options.AddPolicy(Policies.MfaRequired, policy => policy.RequireClaim(ClaimNames.Mfa, "true"));
+        });
+
+        var connectionString = builder.Configuration.GetConnectionString("Sims") ?? "Server=localhost,1433;Database=sims;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True";
+        builder.Services.AddDbContext<SimsDbContext>(options =>
+        {
+            options.UseSqlServer(connectionString, sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "scan"));
+        });
+
+        builder.Services.AddScoped<IProjectService, ProjectService>();
+        builder.Services.AddScoped<ISbomParser, CycloneDxParser>();
 
         var app = builder.Build();
 
-        // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
             app.MapScalarApiReference();
             app.MapOpenApi();
         }
 
-        app.UseHttpsRedirection();
-
+        app.UseSimsSecurity();
+        app.UseCors("web");
+        app.UseRateLimiter();
+        app.UseAuthentication();
         app.UseAuthorization();
-
-
         app.MapControllers();
 
         app.Run();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

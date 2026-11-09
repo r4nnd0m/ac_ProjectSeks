@@ -1,0 +1,50 @@
+SIMS Worker - Probelauf zum Verstehen und Vorführen
+Stand: 06.11.2026
+
+Was du hier siehst
+Unser echter Ablaufcode arbeitet mit erfundenen Daten und vorbereiteten Antworten.
+Du brauchst kein Docker, Redis, SQL oder Internet für den Lauf. Beim allerersten
+Build auf einem anderen PC kann .NET vorhandene NuGet-Pakete herunterladen müssen.
+Es werden keine Dateien oder Datenbankdaten durch die Demo gespeichert.
+
+Start in PowerShell aus dem Projektordner sims
+dotnet run --project examples/Sims.Worker.Demo/Sims.Worker.Demo.csproj
+
+Start in Visual Studio
+Falls nötig die geänderte Projektmappe neu laden. Unter examples das Projekt
+Sims.Worker.Demo als Startprojekt wählen und starten. Danach für den normalen
+Worker wieder Worker als Startprojekt auswählen. Die Demo endet von selbst.
+
+Der Ablauf in einfachen Worten
+1. Ein Auftrag steht wegen eines gedachten vorherigen Abbruchs noch auf Scanning.
+   ScanRecovery setzt ihn im Testspeicher auf Pending zurück.
+2. ScanProcessor übernimmt wartende Aufträge und markiert sie als Scanning.
+3. DemoSources liefert erfundene Schwachstellen-, KEV- und EPSS-Antworten.
+   FindingEnricher verbindet sie. Bei einem Auftrag wirft die Quelle absichtlich
+   einen Fehler. [DEMO/Error] ist in diesem Beispiel ausdrücklich erwartet.
+4. DemoRules liefert für die erfolgreichen Aufträge das feste Testurteil
+   GoWithConditions und jeweils ein Beispielticket. Das sind keine echten Team-Regeln.
+5. ScanProcessor übergibt die vollständigen Ergebnisse an den Testspeicher.
+   Der Fehlerauftrag bekommt Failed und KEIN Urteil. Es entstehen dafür keine Tickets.
+6. Ein zweiter Durchlauf findet keine Pending-Aufträge mehr; keine erneuten Abfragen.
+7. Wir stellen die Demo-Uhr zweimal 60 Sekunden vor. EscalationProcessor verwendet
+   vorbereitete Stufen-Antworten: erst 2/Lead, dann 3/Admin ohne weitere Frist.
+   Die 36-Sekunden-Frist ist nur ein Testwert; die Demo wartet keine echten Minuten.
+
+Erwartete Schlusszeile
+DEMO ERFOLGREICH: 2 Scanned, 1 Failed, 2 Demo-Tickets auf Stufe 3, 4 Demo-Audit-Einträge.
+
+Was damit bewiesen ist
+Die Ablaufbausteine können zusammenarbeiten, Fehler getrennt behandeln und die
+vorgesehenen Speicher-/Regelanschlüsse verwenden. Die Demo prüft ihren Endzustand
+und endet mit Fehler, wenn dieser nicht stimmt.
+
+Was später noch gemeinsam geprüft wird
+SQL-Speicherung/Transaktionen, echte Schwachstellen in diesem Gesamtweg, echte
+B4/C3/C4-Regeln, C5-Audit, doppelte Tickets bei neuen Scans und der API-Upload.
+Ein Demo-Ticket ist keine C1-Entity. Ein Demo-Urteil ist keine echte Freigabe.
+Die separat bereits getesteten echten OSV-/KEV-/EPSS-Clients bleiben erhalten.
+
+Der normale Worker
+Er zeigt weiterhin Scan-, Neustart- und D4-Platzhalter, bis die Team-Adapter da sind.
+Das ist beabsichtigt. Die Demo wird nicht als Ersatz bei echten Ausfällen verwendet.
