@@ -9,6 +9,8 @@ public class SimsDbContext(DbContextOptions<SimsDbContext> options) : DbContext(
     public DbSet<Scan> Scans => Set<Scan>();
     public DbSet<Component> Components => Set<Component>();
     public DbSet<Finding> Findings => Set<Finding>();
+    public DbSet<Ticket> Tickets => Set<Ticket>();
+    public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -49,6 +51,31 @@ public class SimsDbContext(DbContextOptions<SimsDbContext> options) : DbContext(
             entity.Property(f => f.Summary).HasMaxLength(500);
             entity.HasIndex(f => f.ScanId);
             entity.Property(f => f.Severity).HasConversion<string>().HasMaxLength(32);
+        });
+
+        modelBuilder.Entity<Ticket>(entity =>
+        {
+            entity.Property(t => t.Title).HasMaxLength(200).IsRequired();
+            entity.Property(t => t.Description).HasMaxLength(4000);
+            entity.Property(t => t.Cve).HasMaxLength(50);
+            entity.Property(t => t.System).HasMaxLength(200);
+            entity.Property(t => t.ReporterName).HasMaxLength(200).IsRequired();
+            entity.Property(t => t.AssigneeName).HasMaxLength(200);
+            entity.Property(t => t.AssignedRole).HasMaxLength(32);
+            entity.Property(t => t.Severity).HasConversion<string>().HasMaxLength(32);
+            entity.Property(t => t.Status).HasConversion<string>().HasMaxLength(32);
+            entity.HasIndex(t => new { t.TeamId, t.Status });
+            entity.HasIndex(t => new { t.ProjectId, t.Cve, t.System });
+            entity.HasOne<Project>().WithMany().HasForeignKey(t => t.ProjectId).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne<Finding>().WithMany().HasForeignKey(t => t.FindingId).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<AuditEntry>(entity =>
+        {
+            entity.Property(a => a.Action).HasMaxLength(64).IsRequired();
+            entity.Property(a => a.UserName).HasMaxLength(200).IsRequired();
+            entity.Property(a => a.Details).HasMaxLength(2000);
+            entity.HasIndex(a => a.Timestamp);
         });
     }
 }
