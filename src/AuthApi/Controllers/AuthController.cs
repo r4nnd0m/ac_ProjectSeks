@@ -46,6 +46,12 @@ public class AuthController : ControllerBase
             return Unauthorized();
         }
 
+        if (user.TwoFactorEnabled)
+        {
+            string mfaToken = _tokenService.CreateMfaToken(user);
+            return Ok(new LoginResponse(null, null, true, mfaToken));
+        }
+        
         await _userManager.ResetAccessFailedCountAsync(user);
 
         IList<string> roles = await _userManager.GetRolesAsync(user);
@@ -54,6 +60,7 @@ public class AuthController : ControllerBase
 
         return Ok(new LoginResponse(token, _options.ExpiresMinutes * 60, false, null));
     }
+    
 
     [Authorize]
     [HttpGet("me")]
@@ -76,4 +83,5 @@ public class AuthController : ControllerBase
 
         return Ok(new MeResponse(user.Id,user.Email!, role, user.TeamId,user.TwoFactorEnabled));
     }
+    
 }
