@@ -134,6 +134,22 @@ public class MfaController : ControllerBase
             return Unauthorized();
         }
 
-        return Ok();
+        bool valid = await _userManager.VerifyTwoFactorTokenAsync(
+            user,
+            _userManager.Options.Tokens.AuthenticatorTokenProvider,
+            request.Code);
+
+        if (!valid)
+        {
+            await _userManager.AccessFailedAsync(user);
+            return Unauthorized();
+        }
+
+        await _userManager.ResetAccessFailedCountAsync(user);
+
+        IList<string> roles = await _userManager.GetRolesAsync(user);
+        string role = roles.Single();
+        string token = _tokenService.CreateAccessToken(user, role, true);
+        return Ok(new LoginResponse(token, _options.ExpiresMinutes * 60, false, null));
     }
 }
