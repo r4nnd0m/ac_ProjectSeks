@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ScanApi.Dtos;
+using Sims.Contracts;
 using ScanApi.Services;
 
 namespace ScanApi.Controllers;
@@ -66,6 +67,14 @@ public class TicketsController(ITicketService ticketService) : ControllerBase
     public async Task<IActionResult> Close(Guid id)
     {
         TicketOutcome outcome = await ticketService.CloseAsync(id, User);
+        return ToResult(outcome);
+    }
+    [HttpPost("{id:guid}/accept-risk")]
+    [Authorize(Policy = Policies.AdminOnly)]
+    [Authorize(Policy = Policies.MfaRequired)]
+    public async Task<IActionResult> AcceptRisk(Guid id, [FromBody] AcceptRiskRequest request)
+    {
+        TicketOutcome outcome = await ticketService.AcceptRiskAsync(id, request, User);
         return ToResult(outcome);
     }
 

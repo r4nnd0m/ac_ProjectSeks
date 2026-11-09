@@ -95,6 +95,14 @@ public class Ticket
         ClosedAt = now;
     }
 
+    public void AcceptRisk(DateTimeOffset now)
+    {
+        EnsureNotFinished();
+
+        Status = TicketStatus.RiskAccepted;
+        ClosedAt = now;
+    }
+
     // Die Wächter-Prüfung steht nur einmal hier, damit sie nicht in jeder Methode wiederholt wird.
     private void EnsureNotFinished()
     {

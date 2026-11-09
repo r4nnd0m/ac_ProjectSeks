@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using ScanApi.Dtos;
 using ScanApi.Extensions;
+using Sims.Shared.Audit;
 using Sims.Shared.Data;
 using Sims.Shared.Entities;
 
@@ -20,9 +21,11 @@ public interface ITicketService
     Task<TicketOutcome> TakeAsync(Guid id, ClaimsPrincipal user, CancellationToken ct = default);
 
     Task<TicketOutcome> CloseAsync(Guid id, ClaimsPrincipal user, CancellationToken ct = default);
+
+    Task<TicketOutcome> AcceptRiskAsync(Guid id, AcceptRiskRequest request, ClaimsPrincipal user, CancellationToken ct = default);
 }
 
-public class TicketService(SimsDbContext db, TimeProvider clock) : ITicketService
+public class TicketService(SimsDbContext db, TimeProvider clock, AuditService audit) : ITicketService
 {
     public async Task<PagedResponse<TicketResponse>> ListAsync(TicketFilter filter, ClaimsPrincipal user, CancellationToken ct = default)
     {
@@ -132,6 +135,7 @@ public class TicketService(SimsDbContext db, TimeProvider clock) : ITicketServic
         }
 
         ticket.Assign(user.GetUserId(), user.GetUserName());
+        audit.Record(user.GetUserId(), user.GetUserName(), AuditActions.TicketTaken, ticket.Id, null);
         await db.SaveChangesAsync(ct);
 
         return TicketOutcome.Ok;
@@ -152,6 +156,28 @@ public class TicketService(SimsDbContext db, TimeProvider clock) : ITicketServic
         }
 
         ticket.Close(clock.GetUtcNow());
+        audit.Record(user.GetUserId(), user.GetUserName(), AuditActions.TicketClosed, ticket.Id, null);
+        await db.SaveChangesAsync(ct);
+
+        return TicketOutcome.Ok;
+    }
+
+    public async Task<TicketOutcome> AcceptRiskAsync(Guid id, AcceptRiskRequest request, ClaimsPrincipal user, CancellationToken ct = default)
+    {
+        Ticket? ticket = await FindAsync(id, user, ct);
+
+        if (ticket is null)
+        {
+            return TicketOutcome.NotFound;
+        }
+
+        if (ticket.IsFinished)
+        {
+            return TicketOutcome.Conflict;
+        }
+
+        ticket.AcceptRisk(clock.GetUtcNow());
+        audit.Record(user.GetUserId(), user.GetUserName(), AuditActions.RiskAccepted, ticket.Id, request.Justification);
         await db.SaveChangesAsync(ct);
 
         return TicketOutcome.Ok;

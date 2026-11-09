@@ -1,3 +1,5 @@
+using System.Text;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -5,9 +7,9 @@ using Scalar.AspNetCore;
 using ScanApi.Extensions;
 using ScanApi.Services;
 using Sims.Contracts;
+using Sims.Shared.Audit;
 using Sims.Shared.Data;
-using System.Text;
-using System.Text.Json.Serialization;
+using Sims.Shared.Audit;
 
 namespace ScanApi;
 
@@ -24,6 +26,8 @@ public class Program
 
         builder.Services.AddOpenApi();
         builder.Services.AddSimsSecurity();
+        builder.Services.AddScoped<AuditService>();
+        builder.Services.AddScoped<IAuditQueryService, AuditQueryService>();
 
         var jwtKey = builder.Configuration["Jwt:Key"] ?? "12345678901234567890123456789012";
         var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "sims-auth";
@@ -64,6 +68,8 @@ public class Program
         builder.Services.AddScoped<ISbomParser, CycloneDxParser>();
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddScoped<ITicketService, TicketService>();
+        builder.Services.AddScoped<AuditService>();
+        builder.Services.AddScoped<IAuditQueryService, AuditQueryService>();
 
         var app = builder.Build();
 

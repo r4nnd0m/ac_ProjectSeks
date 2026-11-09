@@ -128,4 +128,16 @@ public class TicketCreatorTests
 
         Assert.Single(result);
     }
+    [Fact]
+    public void Risk_accepted_ticket_prevents_duplicate()
+    {
+        Project project = CreateProject();
+        List<Finding> findings = [CreateFinding("CVE-2026-0008", Severity.High)];
+        Ticket accepted = CreateExistingTicket(project, "CVE-2026-0008", "Newtonsoft.Json");
+        accepted.AcceptRisk(Now);
+
+        IReadOnlyList<Ticket> result = CreateCreator().CreateFor(project, findings, [accepted], Now);
+
+        Assert.Empty(result);
+    }
 }

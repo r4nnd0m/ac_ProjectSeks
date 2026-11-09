@@ -121,4 +121,24 @@ public class TicketTests
 
         Assert.Throws<InvalidOperationException>(() => ticket.Update("Titel", "Text", Severity.Low));
     }
+    [Fact]
+    public void AcceptRisk_sets_status_and_closed_at()
+    {
+        Ticket ticket = CreateTicket();
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+
+        ticket.AcceptRisk(now);
+
+        Assert.Equal(TicketStatus.RiskAccepted, ticket.Status);
+        Assert.Equal(now, ticket.ClosedAt);
+    }
+
+    [Fact]
+    public void AcceptRisk_on_closed_ticket_throws()
+    {
+        Ticket ticket = CreateTicket();
+        ticket.Close(DateTimeOffset.UtcNow);
+
+        Assert.Throws<InvalidOperationException>(() => ticket.AcceptRisk(DateTimeOffset.UtcNow));
+    }
 }
