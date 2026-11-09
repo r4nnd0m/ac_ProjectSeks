@@ -49,4 +49,29 @@ public class JwtTokenService : ITokenService
         string token = handler.CreateToken(descriptor);
         return token;
     }
+
+    public string CreateMfaToken(ApplicationUser user)
+    {
+        List<Claim> claims = new List<Claim>
+        {
+            new Claim(ClaimNames.Sub, user.Id.ToString()),
+            new Claim(MfaTokenConstants.PurposeClaim, MfaTokenConstants.PurposeValue)
+        };
+        
+        SymmetricSecurityKey key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.Key));
+        SigningCredentials credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        SecurityTokenDescriptor descriptor = new SecurityTokenDescriptor
+        {
+            Issuer = _options.Issuer,
+            Audience = MfaTokenConstants.Audience,
+            Subject = new ClaimsIdentity(claims),
+            Expires = DateTime.UtcNow.AddMinutes(5),
+            SigningCredentials = credentials
+        };
+
+        JsonWebTokenHandler handler = new JsonWebTokenHandler();
+        string token = handler.CreateToken(descriptor);
+        return token;
+    }
 }
