@@ -1,41 +1,92 @@
-var builder = WebApplication.CreateBuilder(args);
+using System.Text;
+using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Scalar.AspNetCore;
+using ScanApi.Extensions;
+using ScanApi.Services;
+using Sims.Contracts;
+using Sims.Shared.Audit;
+using Sims.Shared.Data;
+using Sims.Shared.Audit;
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+namespace ScanApi;
 
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+public class Program
 {
-    app.MapOpenApi();
+    public static void Main(string[] args)
+    {
+        var builder = WebApplication.CreateBuilder(args);
+
+        builder.Services.AddControllers().AddJsonOptions(options =>
+        {
+            options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        });
+
+        builder.Services.AddOpenApi();
+        builder.Services.AddSimsSecurity();
+        builder.Services.AddScoped<AuditService>();
+        builder.Services.AddScoped<IAuditQueryService, AuditQueryService>();
+
+        var jwtKey = builder.Configuration["Jwt:Key"] ?? "12345678901234567890123456789012";
+        var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "sims-auth";
+        var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "sims-api";
+
+        builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                options.MapInboundClaims = false;
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidIssuer = jwtIssuer,
+                    ValidAudience = jwtAudience,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ClockSkew = TimeSpan.FromSeconds(30),
+                    RoleClaimType = ClaimNames.Role,
+                    NameClaimType = ClaimNames.Name
+                };
+            });
+
+        builder.Services.AddAuthorization(options =>
+        {
+            options.AddPolicy(Policies.AdminOnly, policy => policy.RequireRole(Roles.Admin));
+            options.AddPolicy(Policies.MfaRequired, policy => policy.RequireClaim(ClaimNames.Mfa, "true"));
+        });
+
+        var connectionString = builder.Configuration.GetConnectionString("Sims") ?? "Server=localhost,1433;Database=sims;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True";
+        builder.Services.AddDbContext<SimsDbContext>(options =>
+        {
+            options.UseSqlServer(connectionString, sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "scan"));
+        });
+
+        builder.Services.AddScoped<IProjectService, ProjectService>();
+        builder.Services.AddScoped<ISbomParser, CycloneDxParser>();
+        builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddScoped<ITicketService, TicketService>();
+        builder.Services.AddScoped<AuditService>();
+        builder.Services.AddScoped<IAuditQueryService, AuditQueryService>();
+
+        var app = builder.Build();
+
+        if (app.Environment.IsDevelopment())
+        {
+            app.MapScalarApiReference();
+            app.MapOpenApi();
+        }
+
+        app.UseSimsSecurity();
+        app.UseCors("web");
+        app.UseRateLimiter();
+        app.UseAuthentication();
+        app.UseAuthorization();
+        app.MapControllers();
+
+        app.Run();
+    }
 }
 
-app.UseHttpsRedirection();
-
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
-
-app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

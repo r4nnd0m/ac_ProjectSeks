@@ -1,0 +1,26 @@
+﻿F3 | Das Worker-Image für den Compose-Test
+Rolle 6 | Urteil und Eskalation, Infrastruktur, Doku
+Ansprechperson: Christian | Entwurf vom 07.11.2026
+
+F2 benötigt ein lauffähiges Worker-Image für den Gesamttest im Container.
+
+Vorschlag für die Umsetzung
+
+Vorschlag für diesen Checkout: Build-Context ist das Repository-Stammverzeichnis. Das
+Projekt liegt unter src/Worker/Worker.csproj. Beim Restore auch die gemeinsamen Projekte,
+Directory.Build.props und Directory.Packages.props berücksichtigen. Der Worker verwendet
+Sims.Shared und Sims.Logging. Das veröffentlichte Programm startet mit dotnet Worker.dll.
+
+Die Projektanleitung sieht einen mehrstufigen Build, eine austauschbare .NET-10-Runtime als
+Basis und einen Benutzer ohne Root-Rechte vor. Die vorhandene lokale .env bleibt außerhalb
+des Images. F2 übergibt Verbindungen und Einstellungen erst beim Start.
+
+Beispiel für die gemeinsame Prüfung
+
+Wenn das Dockerfile unter src/Worker/Dockerfile liegt, im Repository-Stamm docker build -f src/Worker/Dockerfile -t sims-worker . ausführen. Danach über F2 mit Redis-Konfiguration starten und in der Ausgabe „Worker gestartet“ prüfen. Nach der SQL-Anbindung zusätzlich einen Testauftrag verarbeiten.
+
+Rückmeldung an Stefan
+
+Dockerfile-Pfad und ein bestätigter Build-Aufruf für F2 und Stefan.
+Passt / gewünschte Änderung: _________________________________
+Branch, Commit oder geplanter Termin: ________________________

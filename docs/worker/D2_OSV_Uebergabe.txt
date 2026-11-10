@@ -1,0 +1,82 @@
+SIMS Worker - D2 OSV-Client: Übergabe
+Stand: 06.11.2026
+
+Zweck
+Zu Komponenten bekannte Sicherheitslücken abfragen und zugeordnete Daten liefern.
+Kein Datenbankzugriff, keine Entities, keine Urteilsermittlung und keine Tickets.
+Der ScanProcessor-Ablauf ist inzwischen vorbereitet (D3_Scanablauf_Uebergabe.txt).
+Der normale Host verwendet bis zur Team-Integration UnconfiguredScanProcessor.
+
+Dateien
+src/Worker/Osv/: Client, Vertrag, DTOs, Eingabe/Ergebnis, Ausnahme, Registrierung.
+tests/Sims.Worker.Tests/OsvClientTests.cs: 40 automatisierte Testfälle ohne Internet.
+Program.cs: services.AddOsvClient().
+Worker.csproj und Directory.Packages.props: Microsoft.Extensions.Http.Resilience 10.11.0.
+
+Anschluss (Namespace Worker.Osv)
+Task<IReadOnlyList<OsvFinding>> IOsvClient.FindVulnerabilitiesAsync(
+    IReadOnlyList<OsvComponent> components, CancellationToken ct)
+
+OsvComponent(Guid Id, string Purl)
+OsvFinding(Guid ComponentId, string VulnId, string? Cve,
+           OsvSeverity Severity, string? Summary)
+OsvSeverity: Low, Medium, High, Critical.
+
+WICHTIG: Vorläufige Grenze zu B1
+Die vorgesehenen B1-Typen Component und Severity sind im lokalen Sims.Shared noch
+nicht vorhanden. Daher sind OsvComponent/OsvSeverity bewusst eigene Worker-Typen.
+Diese Signatur ist nicht identisch mit der Component-Signatur der Projektanleitung.
+Keine gemeinsam verwalteten Entities, Tabellen oder Migrationen wurden erfunden.
+Beim Anschluss an B1/B2 die API mit dem Team abgleichen. Entweder im ScanProcessor
+Component.Id/Purl auf OsvComponent abbilden oder den Vertrag gemeinsam anpassen.
+OsvSeverity ausdrücklich anhand der benannten Werte auf B1-Severity abbilden;
+keine numerischen Enum-Casts. Erst D3 erzeugt die gespeicherten Finding-Entities.
+
+Verhalten
+- Jede Eingabe braucht eine eindeutige, nicht leere Komponenten-ID und eine Purl.
+  Die Purl enthält bereits die Version; es wird kein separates version-Feld gesendet.
+- Bis zu 500 Komponenten je POST v1/querybatch. Reihenfolge und Anzahl abgleichen.
+- Eindeutige Schwachstellen-IDs einmal je Client-Aufruf über GET v1/vulns/{id} laden.
+  Höchstens fünf Detailanfragen gleichzeitig. Detail-ID muss zur Anfrage passen.
+- Gleiche Lücke bei mehreren Komponenten bleibt mehrfach zugeordnet. Doppelte
+  Paare aus gleicher Komponenten-ID und gleicher Schwachstellen-ID werden entfernt.
+- CVE aus eigener ID, sonst erster CVE-Alias. CVE darf fehlen.
+- database_specific.severity: Critical/High/Medium/Moderate/Low, unbekannt -> Medium.
+- Summary ist optional und auf höchstens 500 UTF-16-Codeeinheiten begrenzt,
+  ohne am Ende ein halbes Surrogatpaar stehenzulassen.
+- Nur vollständig erfolgreiche Abfragen liefern Ergebnisse, auch bei mehreren Batches.
+- Fehlerstatus, Netzwerk-/Zeitlimitfehler, ungültige Antworten und weitere Seiten
+  -> OsvUnavailableException. Ein gewünschter Abbruch bleibt OperationCanceledException.
+- MVP-Grenze: next_page_token wird als unvollständige Antwort abgelehnt.
+  Pagination wird nicht automatisch nachgeladen und niemals still ignoriert.
+- Unbekannte Felder auf Batch-/Ergebnis-Ebene werden ebenfalls abgelehnt;
+  das vermeidet, fremde Fehlerobjekte irrtümlich als fundfreie Antwort zu lesen.
+- Leere Eingabeliste benötigt keine HTTP-Anfrage. Ein korrektes Ergebnis ohne vulns
+  ist erlaubt. Keine gefundenen Lücken sind keine allgemeine Sicherheitsgarantie.
+- HttpClientFactory und Standard-Resilience-Handler (Retry, Timeout, Circuit Breaker).
+  POST darf wiederholt werden, weil querybatch eine reine Leseabfrage ist.
+- Bei Fehlern werden keine fremden Antwortinhalte in die eigene Logmeldung übernommen.
+
+Geprüfter Stand
+11 Projekte gebaut, 0 Warnungen/Fehler. 49 Worker-Tests (40 OSV + 9 Ablauf/Heartbeat)
+und 13 Logging-Tests erfolgreich. Einschließlich paralleler Abrufgrenze, Batchgrenze,
+fehlerhafter Antworten, Abbruch und Wiederholung über den registrierten HTTP-Handler.
+Live-Test des registrierten Clients am 06.11.2026 mit
+pkg:nuget/Newtonsoft.Json@12.0.1: GHSA-5crp-9r3c-p9vr / CVE-2024-21907 / High,
+Kurzbeschreibung vorhanden. Nur vorbereitete Komponente, kein Upload-/SQL-Gesamttest.
+Live-Ergebnisse können sich ändern; die automatisierten Tests nutzen feste Antworten.
+
+Prüfen aus dem Repository-Ordner
+dotnet build sims.slnx
+dotnet test tests/Sims.Worker.Tests/Sims.Worker.Tests.csproj --filter FullyQualifiedName~OsvClientTests
+
+Noch zu integrieren
+B1/B2-Komponenten -> Client -> D3-Findings -> B4-Urteil/C3-Tickets -> gemeinsames Speichern.
+OsvUnavailableException muss im ScanProcessor den Scan auf Failed setzen; kein Urteil
+und kein halbfertiges Ergebnis speichern. D1-SQL-Anbindung und Recovery bleiben offen.
+
+Primärquellen
+https://google.github.io/osv.dev/post-v1-querybatch/
+https://google.github.io/osv.dev/get-v1-vulns/
+https://learn.microsoft.com/en-us/dotnet/core/resilience/http-resilience
+https://www.nuget.org/packages/Microsoft.Extensions.Http.Resilience/10.11.0

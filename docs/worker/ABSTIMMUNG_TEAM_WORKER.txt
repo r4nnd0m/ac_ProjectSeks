@@ -1,0 +1,129 @@
+SIMS | Sieben Vorschläge für die Zusammenarbeit mit dem Worker
+Stefan an Christian, Leo und Patrik · Entwurf für die Abstimmung · 07.11.2026
+
+Christian übernimmt B4 und C4 sowie F2 und F3 für den Containerbetrieb.
+Patrik betreut B1, B2, B3 und B5. Leo betreut C1, C2, C3 und C5.
+Stefan verbindet diese Bausteine im Worker (D1–D4). Ihr könnt
+zu jedem Punkt „passt“ schreiben oder die gewünschte Änderung ergänzen.
+
+Einzeldateien zum Weitergeben (Unterordner abstimmung)
+   Christian      B4_Scanurteil.txt, C4_Eskalationsregeln.txt,
+                  F2_Compose.txt, F3_Workerimage.txt
+   Patrik         B1_Datenmodell.txt, B2_SBOM_Upload.txt,
+                  B3_Projekt_und_Team.txt, B5_Scanergebnis_lesen.txt
+   Leo            C1_Ticketmodell.txt, C2_Ticket_API.txt,
+                  C3_Automatische_Tickets.txt, C5_Audit.txt
+Die Übergabe für den gemeinsamen Redis-Logger liegt bei D1_Logging_Uebergabe.txt.
+
+1. Gemeinsame Klassen früh zeigen
+   Vorschlag: Sobald die Eingaben und Rückgaben feststehen, teilt jedes Team
+   den Branch oder GitHub-Link, einen Beispielaufruf und den erwarteten
+   Rückgabewert. Ein Entwurf darf als „in Arbeit“ markiert sein.
+   Der gemeinsame Teststand heißt main-test. Neue Paket-Branches starten
+   auf origin/main-test. Pull Requests zur Integration zielen auf main-test.
+   Die gemeinsamen Modelle und Regeln liegen wie geplant in Sims.Shared.
+   Stefan passt die Anschlüsse im Worker an die vereinbarten Namen an.
+   Erster konkreter Austausch: Patrik zeigt Finding, Leo zeigt Ticket,
+   Christian zeigt Calculate und StartFor. Damit können alle parallel arbeiten.
+
+2. Dieselbe SQL-Datenbank für Upload und Worker verwenden
+   Vorschlag für Patrik (B1–B3) und Stefan: Wir verwenden die Vorgaben
+   aus dem Schnittstellendokument: Microsoft SQL Server, Datenbank sims,
+   Schema scan, Schlüssel ConnectionStrings:Sims. In Visual Studio erreichen
+   wir den lokalen Server über localhost,1433, in Compose über sql,1433.
+   B1 stellt SimsDbContext und AddSimsDatabase(connectionString) bereit.
+   Patrik koordiniert die Änderungen am Tabellenschema (Migrationen).
+   Die Scan-API wendet sie wie vorgesehen bei aktiviertem Migrations:Run an.
+   B2 speichert pro Upload einen Pending-Scan und seine Komponenten zusammen.
+   Für Stefan reichen Projekt-ID, Scan-ID und je Komponente ID, Name, Version
+   und Purl (Paketadresse mit Version). B3 liefert die TeamId am Projekt.
+
+3. Klar festlegen, wann ein Scan als fertig gilt
+   Vorschlag für B1/B2 und Stefan: Für den ersten gemeinsamen Stand läuft
+   ein Worker. Er übernimmt einen wartenden Auftrag und speichert Scanning.
+   Am Ende speichert er Funde, Urteil, neue Tickets, Abschlusszeit und Scanned
+   in einer SQL-Transaktion. Dadurch sieht die API ein vollständiges Ergebnis.
+   Fällt eine Quelle während der Prüfung aus, erhält der Scan Failed,
+   Abschlusszeit und Fehlerhinweis. Urteil, neue Funde und Tickets bleiben
+   für diesen Versuch leer. Ein beim Herunterfahren unterbrochener Scan bleibt
+   auf Scanning und wird beim Neustart auf Pending gesetzt. Geht allein die
+   Bestätigung des letzten Schreibens verloren, prüfen wir den gespeicherten
+   Zustand vor jeder Korrektur. Den SQL-Anschluss dafür übernimmt Stefan.
+
+4. Ein Fund ergibt ein Urteil und bei Bedarf ein Ticket
+   Vorschlag für Christian (B4): VerdictCalculator.Calculate(findings) nimmt
+   gemeinsame B1-Findings und liefert Go, GoWithConditions oder NoGo.
+   Schweregrad, IsKev und der optionale EPSS-Wert sind die Regeleingaben.
+   Wir übernehmen zunächst den vorgesehenen EPSS-Grenzwert 0,50. Ab diesem
+   Wert ergibt sich NoGo. Fehlende EPSS-Werte bleiben null. Stefan bindet
+   die Regeln mit AddVerdictRules(config) ein.
+   Vorschlag für Leo (C3): TicketCreator.CreateFor(project, findings,
+   existingTickets, now) erhält Funde mit zugehöriger Komponente und liefert
+   neue, noch ungespeicherte C1-Tickets. C3 ruft Christians StartFor auf.
+   Stefan speichert die neuen Tickets zusammen mit dem Scan. Für Duplikate
+   vergleichen wir Projekt, CVE (sonst VulnId) und Komponentenname.
+   RiskAccepted zählt als vorhanden. Closed erlaubt bei einem neuen Fund
+   ein neues Ticket. Für Funde ohne CVE bitte den Vergleich über VulnId
+   auch gegen bereits gespeicherte Tickets ermöglichen.
+   Gemeinsames Beispiel: ein einziger High-Fund in Paket X, Version 1.0,
+   IsKev=false, EPSS=0,20, bisher kein passendes Ticket. Erwartet werden
+   GoWithConditions und ein Ticket.
+
+5. Eskalation an eine Rolle und Nachweis gemeinsam speichern
+   Vorschlag für Christian (C4) und Leo (C1/C2/C3): C3 ruft
+   StartFor(severity, isKev, now) beim Anlegen auf. Für den High-Fall aus
+   Punkt 4 liefert die Regel Stufe 1, leere Rolle und eine Frist in 24 Stunden.
+   C4 nutzt die konfigurierbaren Startwerte Critical=4 h, High=24 h,
+   Medium=72 h. Low hat regulär keine Frist. KEV startet direkt auf Stufe 3
+   mit Admin und ohne Frist.
+   Stefan fragt im Worker alle 60 Sekunden nach überfälligen Tickets. C4
+   liefert mit NextLevel(ticket, now) den nächsten Schritt: erst Stufe 2 mit
+   Lead und neuer Frist, später Stufe 3 mit Admin ohne weitere Frist.
+   Für Closed, RiskAccepted, Stufe 3 sowie fehlende oder noch laufende Fristen
+   liefert die Regel null. C1 setzt mit Ticket.Escalate(level, role, dueAt)
+   Stufe, Rolle, Frist und den Status Escalated. C2 gibt diese Werte über die
+   Ticket-API aus. Die Benutzerrolle am Konto und der persönliche Bearbeiter
+   sind von der Zuständigkeit am Ticket unabhängig.
+   Leo betreut C5. Sein vorgesehener Anschluss AuditService.Record
+   merkt pro Wechsel die Aktion TicketEscalated, Ticket-ID, alte/neue Stufe und
+   den Systemnutzer „SIMS Worker“ (Guid.Empty) vor. Der Worker speichert Ticket
+   und Audit-Eintrag zusammen.
+
+6. Gemeinsame technische Meldungen über Redis lesen
+   Vorschlag: Stefan stellt Sims.Logging mit dem Beispiel aus
+   D1_Logging_Uebergabe.txt bereit. Patrik und Leo binden es für die Scan-API
+   mit builder.Logging.AddRedis(mux, "scan-api") ein. Dabei ist mux die
+   vorhandene Redis-Verbindung. Die für die Auth-API zuständige Person
+   verwendet "auth-api". Der Worker verwendet bereits "worker".
+   Prüfung: Jeder Dienst erzeugt eine Testmeldung. In Redis lässt sich am
+   Dienstnamen erkennen, wo sie entstanden ist. Der fachliche Nachweis einer
+   Eskalation gehört wie in Punkt 5 in SQL.
+
+7. Einen Ablauf gemeinsam von Anfang bis Ende prüfen
+   Vorschlag: Patrik lädt für ein Testprojekt eine kleine CycloneDX-
+   Datei über die Scan-API hoch. Stefan startet den Worker mit echter
+   SQL-Anbindung. Für das reproduzierbare Regelbeispiel vereinbaren wir feste
+   Quellenantworten mit genau dem High-Fund aus Punkt 4. Christian prüft
+   Urteil und Fristen, Leo liest das Ticket über GET /tickets/{id}.
+   a) Erster Upload: Scanned, GoWithConditions, ein offenes Ticket auf Stufe 1.
+   b) Erneuter Upload für dasselbe Projekt: zwei abgeschlossene Scans,
+      weiterhin ein Ticket für dieselbe offene Schwachstelle in Paket X.
+   c) Für den Eskalationstest bereits vor dem Anlegen des Testtickets die
+      High-Frist auf 0,01 Stunden (36 Sekunden) setzen. Nach Fristablauf
+      beim nächsten Prüflauf Lead erwarten, nach der zweiten Frist Admin.
+      Das ergeben zwei Rollenwechsel und zwei passende Audit-Einträge.
+   d) Separat einen Quellenfehler sowie einen Worker-Neustart auslösen
+      und die in Punkt 3 vereinbarten SQL-Zustände kontrollieren.
+
+Kurze Rückmeldung für Stefan
+   Christian (B4/C4/F2/F3) · passt / Änderung · Branch oder Beispielaufruf:
+   ______________________________________________________________________
+   Leo (C1/C2/C3/C5) · passt / Änderung · Branch oder Beispiel:
+   ______________________________________________________________________
+   Patrik (B1/B2/B3/B5) · passt / Änderung · Branch oder Beispiel:
+   ______________________________________________________________________
+   Gemeinsamer Testtermin: _______________________________________________
+
+Grundlage: „SIMS Schnittstellen und Namen (Woche 1)“, „SIMS Anleitungen je
+Arbeitspaket“ und „SIMS OOP-Struktur“. Die Vorschläge beziehen sich auf den
+geplanten Anschluss. Die bestehende Offline-Demo verwendet Testdaten.

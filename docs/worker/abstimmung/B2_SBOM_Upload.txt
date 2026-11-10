@@ -1,0 +1,34 @@
+﻿B2 | Aus einer Software-Stückliste wird ein Scan-Auftrag
+Für Patrik | Abstimmung mit Stefan | Entwurf vom 07.11.2026
+
+B2 liefert den Auftrag und die Paketdaten, mit denen D2 und D3 beginnen.
+
+Vorschlag für die Umsetzung
+
+Wir schlagen die geplante Route POST /projects/{id}/scans?version=1.0 vor. Die API prüft das
+Projekt über B3 und speichert einen Scan mit Status Pending, ProjectId und CreatedAt
+zusammen mit seinen Komponenten. Sie gibt die scanId zurück. Der Worker sucht diese Aufträge
+in SQL.
+
+Beispiel aus der Projektanleitung für den Request-Body:
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "components": [{
+    "type": "library", "name": "Newtonsoft.Json", "version": "12.0.1",
+    "purl": "pkg:nuget/Newtonsoft.Json@12.0.1"
+  }]
+}
+Der Worker braucht die gespeicherte Komponenten-ID für die Zuordnung des Fundes und die
+vollständige Purl mit Version für seine OSV-Abfrage.
+
+Beispiel für die gemeinsame Prüfung
+
+Der Upload liefert HTTP 202 und eine scanId. Zu dieser ID findet der Worker eine wartende
+Aufgabe mit genau dieser Komponente. Ein erneuter Upload liefert eine neue scanId.
+
+Rückmeldung an Stefan
+
+Branch, Beispielprojekt und bestätigter Beispielupload.
+Passt / gewünschte Änderung: _________________________________
+Branch, Commit oder geplanter Termin: ________________________

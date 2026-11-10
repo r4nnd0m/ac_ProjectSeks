@@ -1,4 +1,4 @@
-﻿namespace Sims.Contracts;
+namespace Sims.Contracts;
 
 public static class ClaimNames
 {
