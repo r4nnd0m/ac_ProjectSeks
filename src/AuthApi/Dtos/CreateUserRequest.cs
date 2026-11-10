@@ -3,9 +3,9 @@
 namespace AuthApi.Dtos;
 
 public record CreateUserRequest(
-    [property: Required, EmailAddress] string Email,
-    [property: Required] string Password,
-    [property: Required] string Role,
-    [property: Required] Guid TeamId);
+    [Required, EmailAddress] string Email,
+    [Required] string Password,
+    [Required] string Role,
+    [Required] Guid TeamId);
     
 

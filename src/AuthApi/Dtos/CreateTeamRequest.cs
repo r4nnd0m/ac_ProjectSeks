@@ -3,4 +3,4 @@
 namespace AuthApi.Dtos;
 
 public record CreateTeamRequest(
-    [property: Required, StringLength(100)] string Name);
+    [Required, StringLength(100)] string Name);
