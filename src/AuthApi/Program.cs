@@ -1,4 +1,5 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using AuthApi.Data;
 using AuthApi.Models;
 using AuthApi.Options;
@@ -9,8 +10,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using Sims.Contracts;
+using StackExchange.Redis;
 
-namespace sims;
+namespace AuthApi;
 
 public class Program
 {
@@ -65,12 +67,53 @@ public class Program
                     RoleClaimType = ClaimNames.Role,
                     NameClaimType = ClaimNames.Name
                 };
+                o.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = async ctx =>
+                    {
+                        string? jti = ctx.Principal?.FindFirst(ClaimNames.Jti)?.Value;
+                        ITokenBlacklist blacklist =
+                            ctx.HttpContext.RequestServices.GetRequiredService<ITokenBlacklist>();
+                        try
+                        {
+                            if (jti == null || await blacklist.IsRevokedAsync(jti))
+                            {
+                                ctx.Fail("Der Token wurde widerrufen!");
+                            }
+                        }
+                        catch (Exception)
+                        {
+                            ctx.Fail("Die Sperrliste ist nicht verfügbar!");
+                        }
+                    }
+                };
             });
 
         builder.Services.AddAuthorization(o =>
         {
             o.AddPolicy(Policies.AdminOnly, p => p.RequireRole(Roles.Admin));
             o.AddPolicy(Policies.MfaRequired, p => p.RequireClaim(ClaimNames.Mfa, "true"));
+        });
+
+        builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+        {
+            ConfigurationOptions opt = ConfigurationOptions.Parse(builder.Configuration.GetConnectionString("Redis")!);
+            opt.AbortOnConnectFail = false;
+            return ConnectionMultiplexer.Connect(opt);
+        });
+
+        builder.Services.AddSingleton<ITokenBlacklist, RedisTokenBlacklist>();
+
+        builder.Services.AddRateLimiter(o =>
+        {
+            o.RejectionStatusCode = 429;
+            o.AddPolicy("login", ctx => RateLimitPartition.GetFixedWindowLimiter(
+                ctx.Connection.RemoteIpAddress?.ToString() ?? "unbekannt",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 5,
+                    Window = TimeSpan.FromMinutes(1)
+                }));
         });
 
         builder.Services.AddScoped<UserService>();
@@ -101,10 +144,12 @@ public class Program
 
         app.UseHttpsRedirection();
 
+        app.UseRateLimiter();
+
         app.UseAuthentication();
-        
+
         app.UseAuthorization();
-        
+
         app.MapControllers();
 
         app.MapHealthChecks("/health");

@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using AuthApi.Dtos;
 using AuthApi.Models;
@@ -6,6 +7,7 @@ using AuthApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore.Infrastructure.Internal;
 using Microsoft.Extensions.Options;
 using Sims.Contracts;
@@ -19,17 +21,21 @@ public class AuthController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ITokenService _tokenService;
     private readonly JwtOptions _options;
+    private readonly ITokenBlacklist _blacklist;
 
     public AuthController(
         UserManager<ApplicationUser> userManager,
         ITokenService tokenService,
-        IOptions<JwtOptions> options)
+        IOptions<JwtOptions> options,
+        ITokenBlacklist blacklist)
     {
         _userManager = userManager;
         _tokenService = tokenService;
         _options = options.Value;
+        _blacklist = blacklist;
     }
-
+    
+    [EnableRateLimiting("login")]
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequest request)
     {
@@ -82,6 +88,22 @@ public class AuthController : ControllerBase
         string role = roles.Single();
 
         return Ok(new MeResponse(user.Id,user.Email!, role, user.TeamId,user.TwoFactorEnabled));
+    }
+
+    [Authorize]
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout()
+    {
+        string? jti = User.FindFirstValue(ClaimNames.Jti);
+        string? exp = User.FindFirstValue(JwtRegisteredClaimNames.Exp);
+        if (jti == null || exp == null)
+        {
+            return Unauthorized();
+        }
+
+        DateTimeOffset expiresAt = DateTimeOffset.FromUnixTimeSeconds(long.Parse(exp));
+        await _blacklist.RevokeAsync(jti, expiresAt);
+        return NoContent();
     }
     
 }

@@ -2,5 +2,6 @@ namespace AuthApi.Services;
 
 public interface ITokenBlacklist
 {
-    // TODO: A5: RevokeAsync, IsRevokedAsync
+    Task RevokeAsync(string jti, DateTimeOffset expiresAt);
+    Task<bool> IsRevokedAsync(string jti);
 }
