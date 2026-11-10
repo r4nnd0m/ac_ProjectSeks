@@ -19,15 +19,18 @@ public class AuthController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ITokenService _tokenService;
     private readonly JwtOptions _options;
+    private readonly ITokenBlacklist _blacklist;
 
     public AuthController(
         UserManager<ApplicationUser> userManager,
         ITokenService tokenService,
-        IOptions<JwtOptions> options)
+        IOptions<JwtOptions> options,
+        ITokenBlacklist blacklist)
     {
         _userManager = userManager;
         _tokenService = tokenService;
         _options = options.Value;
+        _blacklist = blacklist;
     }
 
     [HttpPost("login")]
