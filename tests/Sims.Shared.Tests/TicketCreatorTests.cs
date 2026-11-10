@@ -140,4 +140,29 @@ public class TicketCreatorTests
 
         Assert.Empty(result);
     }
+    [Fact]
+    public void Long_component_name_keeps_title_within_limit_and_cve_readable()
+    {
+        Project project = CreateProject();
+        string longName = new string('a', 200);
+        List<Finding> findings = [CreateFinding("CVE-2026-0009", Severity.High, longName)];
+
+        IReadOnlyList<Ticket> result = CreateCreator().CreateFor(project, findings, [], Now);
+
+        Ticket ticket = Assert.Single(result);
+        Assert.Equal(Ticket.TitleMaxLength, ticket.Title.Length);
+        Assert.StartsWith("CVE-2026-0009 in ", ticket.Title);
+    }
+
+    [Fact]
+    public void Short_title_stays_unchanged()
+    {
+        Project project = CreateProject();
+        List<Finding> findings = [CreateFinding("CVE-2026-0010", Severity.High)];
+
+        IReadOnlyList<Ticket> result = CreateCreator().CreateFor(project, findings, [], Now);
+
+        Ticket ticket = Assert.Single(result);
+        Assert.Equal("CVE-2026-0010 in Newtonsoft.Json 12.0.1", ticket.Title);
+    }
 }

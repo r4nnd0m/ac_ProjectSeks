@@ -58,7 +58,7 @@ public class TicketCreator(EscalationPolicy policy)
 
         NewTicket data = new NewTicket(
             project.TeamId,
-            $"{vulnerability} in {finding.Component.Name} {finding.Component.Version}",
+            BuildTitle(vulnerability, finding.Component.Name, finding.Component.Version),
             finding.Summary ?? "",
             finding.Severity,
             Guid.Empty,
@@ -72,5 +72,19 @@ public class TicketCreator(EscalationPolicy policy)
             DueAt: start.DueAt);
 
         return new Ticket(data, now);
+    }
+
+    private static string BuildTitle(string vulnerability, string componentName, string componentVersion)
+    {
+        string prefix = $"{vulnerability} in ";
+        string rest = $"{componentName} {componentVersion}";
+        int available = Ticket.TitleMaxLength - prefix.Length;
+
+        if (available <= 0)
+        {
+            return vulnerability[..Math.Min(vulnerability.Length, Ticket.TitleMaxLength)];
+        }
+
+        return rest.Length <= available ? prefix + rest : prefix + rest[..available];
     }
 }

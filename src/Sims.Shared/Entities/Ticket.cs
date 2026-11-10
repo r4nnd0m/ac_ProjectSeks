@@ -23,6 +23,7 @@ public class Ticket
     public DateTimeOffset? DueAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? ClosedAt { get; private set; }
+    public const int TitleMaxLength = 200;
 
     public bool IsFinished => Status == TicketStatus.Closed || Status == TicketStatus.RiskAccepted;
 
