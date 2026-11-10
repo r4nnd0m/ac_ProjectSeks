@@ -483,3 +483,6 @@ $RECYCLE.BIN/
 
 .idea/
 .env
+
+# Lokale Frontend-Buildausgabe
+/src/Web/dist/

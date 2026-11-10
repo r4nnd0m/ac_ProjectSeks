@@ -185,6 +185,8 @@ public sealed class SqlWorkerIntegrationTests
             {
                 await using var scope = services.CreateAsyncScope();
                 await scope.ServiceProvider.GetRequiredService<IEscalationProcessor>().RunAsync(default);
+                var clock = (Microsoft.Extensions.Time.Testing.FakeTimeProvider)services.GetRequiredService<TimeProvider>();
+                clock.Advance(TimeSpan.FromHours(24) + TimeSpan.FromSeconds(1));
             }
             await using var verify = services.CreateAsyncScope();
             var check = verify.ServiceProvider.GetRequiredService<SimsDbContext>();
@@ -245,10 +247,7 @@ public sealed class SqlWorkerIntegrationTests
         services.AddSingleton<TimeProvider>(new Microsoft.Extensions.Time.Testing.FakeTimeProvider(Now));
         services.AddScoped<IOsvClient, Source>();
         services.AddScoped<IFindingEnricher, Enricher>();
-        services.AddScoped<IScanVerdictCalculator, TestVerdict>();
-        // Bewusst nur im SQL-Test: aktuelle vorläufige StartFor-Version aus dem C3-Branch.
-        services.AddScoped<Sims.Shared.Escalation.EscalationPolicy>();
-        services.AddScoped<IEscalationPolicy, TestSteps>();
+        global::Worker.WorkerDataServices.AddWorkerRules(services, new Microsoft.Extensions.Configuration.ConfigurationManager());
         global::Worker.WorkerDataServices.AddWorkerDataServices(services, connection.ConnectionString);
         await using var provider = services.BuildServiceProvider(validateScopes: true);
         await using var setup = provider.CreateAsyncScope();
@@ -289,11 +288,7 @@ public sealed class SqlWorkerIntegrationTests
         public ScanVerdict Calculate(IReadOnlyList<EnrichedFinding> findings) => ScanVerdict.GoWithConditions;
     }
 
-    private sealed class TestSteps : IEscalationPolicy
-    {
-        public EscalationStep? NextLevel(IEscalationTicket ticket, DateTimeOffset now) =>
-            ticket.EscalationLevel == 1 ? new(2, Roles.Lead, now.AddSeconds(-1)) : new(3, Roles.Admin, null);
-    }
+
 }
 
 internal sealed class SqlServerFactAttribute : FactAttribute

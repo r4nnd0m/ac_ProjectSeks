@@ -37,21 +37,18 @@ gespeicherten Projekt auf beide Migrationen aktualisiert. Das Projekt blieb erha
 Das exportierte Skript auf einer zweiten leeren Datenbank zweimal angewendet. In beiden
 Datenbanken standen alle sechs Fachtabellen und genau zwei Migrationsschritte.
 
-Offen für Stefan nach Christians Lieferung: B4 über IScanVerdictCalculator anbinden und
-die echte C4-Startregel für C3 registrieren. Beides vor AddWorkerDataServices aufrufen.
-Die vorläufige StartFor-Version wird nur im Integrationstest ausdrücklich registriert.
-Bis dahin bleiben Scan-Polling und Neustartkorrektur im normalen Host pausiert, auch
-wenn eine SQL-Verbindung gesetzt ist. Das MVP sieht weiterhin eine aktive Worker-Instanz vor.
+Auf infra-test registriert der Host B4 und C4 vor den SQL-Adaptern. Der
+ScanPollingService ruft die Neustartprüfung und den ScanProcessor auf. Der MVP
+verwendet eine aktive Worker-Instanz. Die Regeln und Fristen stehen in der README.
 
 Wiederholbarer SQL-Test für D3 und D4: Die Umgebungsvariable SIMS_WORKER_TEST_SQL auf den
 Verbindungsstring eines lokalen SQL-Testservers mit Rechten zum Anlegen von Datenbanken
 setzen. Dann vom Repo aus: dotnet test tests/Sims.Worker.Tests --filter FullyQualifiedName~SqlWorkerIntegrationTests
 Jeder SQL-Test verwendet eine eigene neue Datenbank mit Zufallsnamen, wendet die vorhandenen
 Scan-Migrationen an, prüft den Eintrag in der Migrationshistorie für jeden Schritt und
-räumt die Datenbank danach auf. Ohne SIMS_WORKER_TEST_SQL werden die SQL-Fälle übersprungen. Externe Quellen,
-B4 und C4 verwenden gezielte Testantworten.
+räumt die Datenbank danach auf. Ohne SIMS_WORKER_TEST_SQL werden die SQL-Fälle übersprungen. Die externen Quellen verwenden hier Testantworten. B4 und C4 laufen mit den echten Regeln.
 Der Upload-Test ruft Patriks Controller und Parser direkt auf und liest das Ergebnis über
-seine Ergebnisfunktion zurück. HTTP-Anmeldung, Browser und echte Regeln sind separate Abnahmen.
+seine Ergebnisfunktion zurück. Der Browserdurchlauf ist eine eigene Abnahme.
 
 Hinweis für Leo (C3): Ein zulässiger Komponentenname von 200 Zeichen ergibt zusammen
 mit Kennung und Version einen Titel über dem 200-Zeichen-Limit von C1. Das wurde auf

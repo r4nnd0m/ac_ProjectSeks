@@ -9,7 +9,15 @@ namespace Worker;
 
 public static class WorkerDataServices
 {
-    // Die Adapter für Christians Regeln werden, sobald vorhanden, vor diesem Aufruf registriert.
+    public static IServiceCollection AddWorkerRules(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddVerdictRules(configuration);
+        services.AddEscalation(configuration);
+        services.AddSingleton<IScanVerdictCalculator, ScanVerdictAdapter>();
+        services.AddSingleton<IEscalationPolicy, EscalationPolicyAdapter>();
+        return services;
+    }
+
     public static IServiceCollection AddWorkerDataServices(this IServiceCollection services, string? connectionString)
     {
         bool hasDatabase = !string.IsNullOrWhiteSpace(connectionString);

@@ -7,12 +7,12 @@ mit Stufe unter 3 direkt aus SQL. Der Wrapper arbeitet auf dem geladenen Ticket.
 ruft den C5-AuditService auf. Lesen, Eskalieren, Audit und Speichern teilen sich eine kurze
 Transaktion. Schlägt das Audit fehl, bleibt auch die Ticketstufe auf ihrem alten Wert.
 
-Offen für Christian: Die gemeinsame Klasse EscalationPolicy enthält aktuell nur die vorläufige
-StartFor-Methode für neu erstellte Tickets. Für bereits überfällige Tickets fehlt NextLevel.
-Sobald verfügbar, verbindet Stefan sie über IEscalationPolicy mit SqlEscalationTicket.Entity
-und registriert den Adapter vor AddWorkerDataServices. Erst dann wird D4 im normalen Host aktiv.
+Auf infra-test verbinden die Worker-Adapter die gemeinsame EscalationPolicy direkt
+mit dem C1-Ticket. StartFor wird auch bei manueller Ticketanlage in der Scan-API
+angewendet. NextLevel entscheidet ausschließlich anhand des Tickets, der Fristen
+und des übergebenen Zeitpunkts. Die Regeltabelle steht in der README.
 
-Tests mit echtem SQL Server und festen Regelantworten zeigen Stufe 2/Lead und 3/Admin,
+Tests mit echtem SQL Server und der gemeinsamen Regel prüfen Stufe 2/Lead und 3/Admin,
 ein Audit je Stufenwechsel, keine neue Eskalation für geschlossene Tickets und Rollback
 bei abgewiesenem Audit. Den Testaufruf findest du oben in D3_Scanablauf_Uebergabe.txt.
 

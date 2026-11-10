@@ -4,7 +4,6 @@ using Sims.Shared.Entities;
 using Sims.Shared.Enums;
 using Sims.Shared.Tickets;
 using Worker.Enrichment;
-using Worker.Osv;
 
 namespace Worker.Scanning;
 
@@ -24,24 +23,12 @@ internal sealed class SqlTicketPlanner(SimsDbContext db, TicketCreator creator) 
         var project = await db.Projects.AsNoTracking().SingleAsync(p => p.Id == scan.ProjectId, ct);
         var components = await db.Components.AsNoTracking().Where(c => c.ScanId == scan.Id)
             .ToDictionaryAsync(c => c.Id, ct);
-        var entities = findings.Select(f => new Finding
+        var entities = findings.Select(f =>
         {
-            ScanId = scan.Id,
-            ComponentId = f.Finding.ComponentId,
-            Component = components[f.Finding.ComponentId],
-            VulnId = f.Finding.VulnId,
-            Cve = f.Finding.Cve,
-            Severity = f.Finding.Severity switch
-            {
-                OsvSeverity.Low => Severity.Low,
-                OsvSeverity.Medium => Severity.Medium,
-                OsvSeverity.High => Severity.High,
-                OsvSeverity.Critical => Severity.Critical,
-                _ => throw new InvalidOperationException("Unbekannter OSV-Schweregrad.")
-            },
-            Summary = f.Finding.Summary,
-            IsKev = f.IsKev,
-            Epss = f.Epss
+            var entity = f.ToSharedFinding();
+            entity.ScanId = scan.Id;
+            entity.Component = components[entity.ComponentId];
+            return entity;
         }).ToArray();
 
         var existing = await db.Tickets.AsNoTracking()

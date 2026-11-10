@@ -41,18 +41,19 @@ redisOptions.ClientName = "sims-worker";
 using var redis = await ConnectionMultiplexer.ConnectAsync(redisOptions);
 builder.Services.AddSingleton<IConnectionMultiplexer>(redis);
 builder.Logging.AddRedis(redis, "worker");
+builder.Services.AddWorkerRules(builder.Configuration);
 builder.Services.AddWorkerDataServices(builder.Configuration.GetConnectionString("Sims"));
 builder.Services.AddOsvClient();
 builder.Services.AddKevClient();
 builder.Services.AddEpssClient();
 builder.Services.AddScoped<IFindingEnricher, FindingEnricher>();
-builder.Services.AddHostedService<Worker.Worker>();
+builder.Services.AddHostedService<Worker.ScanPollingService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHostedService<Worker.HeartbeatJob>();
 builder.Services.AddHostedService<EscalationJob>();
 
 using var host = builder.Build();
-var logger = host.Services.GetRequiredService<ILogger<Worker.Worker>>();
+var logger = host.Services.GetRequiredService<ILogger<Worker.ScanPollingService>>();
 if (redis.IsConnected)
     logger.LogInformation("Redis-Verbindung hergestellt. Logmeldungen werden zusätzlich an Redis gesendet.");
 else

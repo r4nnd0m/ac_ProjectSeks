@@ -3,9 +3,9 @@ using Worker.Scanning;
 
 namespace Worker;
 
-public class Worker(
+public sealed class ScanPollingService(
     IServiceScopeFactory scopes,
-    ILogger<Worker> logger,
+    ILogger<ScanPollingService> logger,
     IOptions<WorkerOptions> options,
     TimeProvider clock) : BackgroundService
 {
