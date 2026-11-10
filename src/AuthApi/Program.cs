@@ -12,7 +12,7 @@ using Scalar.AspNetCore;
 using Sims.Contracts;
 using StackExchange.Redis;
 
-namespace sims;
+namespace AuthApi;
 
 public class Program
 {
