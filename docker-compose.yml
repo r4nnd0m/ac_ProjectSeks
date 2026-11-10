@@ -78,6 +78,7 @@ services:
       context: .
       dockerfile: src/ScanApi/Dockerfile
     environment:
+      - Migrations__Run=${MIGRATIONS_RUN:-true}
       - Escalation__CriticalHours=${ESCALATION_CRITICAL_HOURS:-4}
       - Escalation__HighHours=${ESCALATION_HIGH_HOURS:-24}
       - Escalation__MediumHours=${ESCALATION_MEDIUM_HOURS:-72}
