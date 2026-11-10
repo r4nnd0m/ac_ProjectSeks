@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using AuthApi.Dtos;
 using AuthApi.Models;
@@ -85,6 +86,22 @@ public class AuthController : ControllerBase
         string role = roles.Single();
 
         return Ok(new MeResponse(user.Id,user.Email!, role, user.TeamId,user.TwoFactorEnabled));
+    }
+
+    [Authorize]
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout()
+    {
+        string? jti = User.FindFirstValue(ClaimNames.Jti);
+        string? exp = User.FindFirstValue(JwtRegisteredClaimNames.Exp);
+        if (jti == null || exp == null)
+        {
+            return Unauthorized();
+        }
+
+        DateTimeOffset expiresAt = DateTimeOffset.FromUnixTimeSeconds(long.Parse(exp));
+        await _blacklist.RevokeAsync(jti, expiresAt);
+        return NoContent();
     }
     
 }
