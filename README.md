@@ -57,6 +57,13 @@ im Container unter `sql,1433`. Nach der Migration `docker compose up -d --build`
 und `docker compose ps` ausführen. Die Worker-Meldungen zeigt `docker compose logs worker`.
 Die Oberfläche unter `src/Web` startet separat. Zum Beenden der Dienste genügt `docker compose stop`.
 
+Docker lädt lokal `docker-compose.override.yml` automatisch. Damit sind SQL und Redis
+vom eigenen PC auf Loopback erreichbar. Für die Bereitstellung nur `-f docker-compose.yml`
+angeben; dort laufen SQL und Redis ausschließlich im internen Netz. Dieser Branch verwendet
+wie der bisherige Infrastrukturstand das SQL-Volume `sqldata`. Wer bereits Daten aus
+`main-test` im Volume `mssql_data` hat, muss beim Wechsel gezielt dieses bestehende
+Volume einbinden, bevor Dienste gestartet werden.
+
 Für das spätere Cloud-Deployment erzeugt `.\scripts\scan-db.ps1 -OutputSql .\scan-migration.sql`
 ein prüfbares SQL-Skript. Bei der Ausführung auf der Ziel-Datenbank überspringt es
 bereits eingespielte Migrationen. Beide Befehle benötigen das .NET 10 SDK und

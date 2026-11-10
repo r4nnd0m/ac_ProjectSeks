@@ -1,0 +1,17 @@
+# Lokale Werkzeuge (Visual Studio, dotnet ef) greifen über Loopback zu.
+# Der Deployment-Aufruf mit explizitem -f docker-compose.yml verwendet nur das interne Netz.
+services:
+  sql:
+    networks:
+      - local-tools-net
+    ports:
+      - "127.0.0.1:1433:1433"
+  redis:
+    networks:
+      - local-tools-net
+    ports:
+      - "127.0.0.1:6379:6379"
+
+networks:
+  local-tools-net:
+    driver: bridge
