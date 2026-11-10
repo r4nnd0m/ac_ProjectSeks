@@ -66,6 +66,26 @@ public class Program
                     RoleClaimType = ClaimNames.Role,
                     NameClaimType = ClaimNames.Name
                 };
+                o.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = async ctx =>
+                    {
+                        string? jti = ctx.Principal?.FindFirst(ClaimNames.Jti)?.Value;
+                        ITokenBlacklist blacklist =
+                            ctx.HttpContext.RequestServices.GetRequiredService<ITokenBlacklist>();
+                        try
+                        {
+                            if (jti == null || await blacklist.IsRevokedAsync(jti))
+                            {
+                                ctx.Fail("Der Token wurde widerrufen!");
+                            }
+                        }
+                        catch (Exception)
+                        {
+                            ctx.Fail("Die Sperrliste ist nicht verfügbar!");
+                        }
+                    }
+                };
             });
 
         builder.Services.AddAuthorization(o =>
@@ -80,6 +100,9 @@ public class Program
             opt.AbortOnConnectFail = false;
             return ConnectionMultiplexer.Connect(opt);
         });
+
+        builder.Services.AddSingleton<ITokenBlacklist, RedisTokenBlacklist>();
+
 
         var app = builder.Build();
 
@@ -107,9 +130,9 @@ public class Program
         app.UseHttpsRedirection();
 
         app.UseAuthentication();
-        
+
         app.UseAuthorization();
-        
+
         app.MapControllers();
 
         app.MapHealthChecks("/health");
