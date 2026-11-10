@@ -1,6 +1,8 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using ScanApi.Controllers;
 using ScanApi.Models;
@@ -251,8 +253,18 @@ public sealed class SqlWorkerIntegrationTests
         await using var provider = services.BuildServiceProvider(validateScopes: true);
         await using var setup = provider.CreateAsyncScope();
         var db = setup.ServiceProvider.GetRequiredService<SimsDbContext>();
-        Assert.True(await db.Database.EnsureCreatedAsync());
-        try { await run(provider); }
+        var migrations = db.Database.GetMigrations().ToArray();
+        Assert.NotEmpty(migrations);
+
+        // Erst wenn SQL die neue Datenbank erfolgreich angelegt hat, gehört sie diesem Test.
+        var creator = db.GetService<IRelationalDatabaseCreator>();
+        await creator.CreateAsync();
+        try
+        {
+            await db.Database.MigrateAsync();
+            Assert.Equal(migrations, await db.Database.GetAppliedMigrationsAsync());
+            await run(provider);
+        }
         finally { await db.Database.EnsureDeletedAsync(); }
     }
 

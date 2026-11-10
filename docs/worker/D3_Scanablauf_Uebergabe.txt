@@ -11,9 +11,31 @@ auf Failed. Bei einem unklaren Commit-Ausgang überschreibt der Worker kein Erge
 
 Start über Program.cs: ConnectionStrings:Sims (Umgebung: ConnectionStrings__Sims) muss
 auf dieselbe Datenbank wie die Scan-API zeigen. Die Tabellen im Schema scan müssen
-vorhanden sein. Auf diesem main-test liegen Migrationen für Auth, aber keine für
-SimsDbContext. Den Einrichtungsweg für eine neue gemeinsame DB bitte mit Patrik klären.
+vorhanden sein. Patriks Einrichtungsweg für das Schema scan ist die EF-Migrationskette
+für SimsDbContext aus src/Sims.Shared, mit src/ScanApi als Startprojekt.
+20261109135531_B1_InitialScanModel (main-test, 13a207c) erstellt Projects, Scans,
+Components und Findings. Die Folgemigration WorkerTicketAndAuditSchema erstellt
+Tickets und AuditEntries aus Leos Modell. Der Worker nutzt alle sechs Tabellen.
 Auch ConnectionStrings:Redis wird wie bisher beim Worker-Start benötigt.
+
+Aus dem Repository-Root in PowerShell:
+1. Lokalen SQL Server mit docker compose up -d sql starten. Die Umgebungsvariable
+   ConnectionStrings__Sims aus der lokalen Konfiguration auf die Ziel-Datenbank setzen.
+   Für den Start auf dem PC lautet die Serveradresse 127.0.0.1,1433 und der Datenbankname
+   sims. Container im Compose-Netz erreichen dieselbe Datenbank unter sql,1433.
+   In der Cloud kommen Adresse und Zugang aus der Deployment-Konfiguration.
+2. .\scripts\scan-db.ps1 ausführen. Das Skript baut die Scan-API, prüft die erkannten
+   Migrationen und den Modellstand und führt dotnet ef database update für SimsDbContext aus.
+3. SQL für ein späteres Deployment exportieren:
+   .\scripts\scan-db.ps1 -OutputSql .\scan-migration.sql
+   Dieser Aufruf erzeugt eine Datei zur Prüfung. Bei der Ausführung auf der bereitgestellten
+   SQL-Server-Datenbank berücksichtigt sie, welche Migrationen bereits eingespielt sind.
+   Derselbe Aufruf funktioniert mit Windows PowerShell und EF-CLI 10.
+
+Prüfung am 10. November 2026 auf SQL Server 2022: Vom Original-B1-Stand mit einem
+gespeicherten Projekt auf beide Migrationen aktualisiert. Das Projekt blieb erhalten.
+Das exportierte Skript auf einer zweiten leeren Datenbank zweimal angewendet. In beiden
+Datenbanken standen alle sechs Fachtabellen und genau zwei Migrationsschritte.
 
 Offen für Stefan nach Christians Lieferung: B4 über IScanVerdictCalculator anbinden und
 die echte C4-Startregel für C3 registrieren. Beides vor AddWorkerDataServices aufrufen.
@@ -24,9 +46,10 @@ wenn eine SQL-Verbindung gesetzt ist. Das MVP sieht weiterhin eine aktive Worker
 Wiederholbarer SQL-Test für D3 und D4: Die Umgebungsvariable SIMS_WORKER_TEST_SQL auf den
 Verbindungsstring eines lokalen SQL-Testservers mit Rechten zum Anlegen von Datenbanken
 setzen. Dann vom Repo aus: dotnet test tests/Sims.Worker.Tests --filter FullyQualifiedName~SqlWorkerIntegrationTests
-Jeder SQL-Test verwendet eine eigene neue Datenbank mit Zufallsnamen, legt dort die Tabellen
-aus dem gemeinsamen EF-Modell an und räumt diese Testdatenbank danach auf. Ohne die Variable
-werden die SQL-Fälle übersprungen. Externe Quellen, B4 und C4 verwenden gezielte Testantworten.
+Jeder SQL-Test verwendet eine eigene neue Datenbank mit Zufallsnamen, wendet die vorhandenen
+Scan-Migrationen an, prüft den Eintrag in der Migrationshistorie für jeden Schritt und
+räumt die Datenbank danach auf. Ohne SIMS_WORKER_TEST_SQL werden die SQL-Fälle übersprungen. Externe Quellen,
+B4 und C4 verwenden gezielte Testantworten.
 Der Upload-Test ruft Patriks Controller und Parser direkt auf und liest das Ergebnis über
 seine Ergebnisfunktion zurück. HTTP-Anmeldung, Browser und echte Regeln sind separate Abnahmen.
 

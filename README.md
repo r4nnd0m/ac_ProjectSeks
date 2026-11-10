@@ -14,7 +14,21 @@ Zum Beispiel startet `git switch --no-track -c patrick/b1-datenmodell origin/mai
 einen eigenen Branch für B1. Beim Pull Request für den gemeinsamen Test `main-test` als Ziel auswählen.
 
 Die [Offline-Demo](docs/worker/DEMO_Anleitung.txt) zeigt die Abläufe mit Testdaten.
-Im normalen Worker sind die Anschlüsse an die gemeinsamen SQL-Modelle und Team-Regeln noch offen.
+Der Worker verwendet die gemeinsamen SQL-Modelle. Für den vollständigen Betrieb fehlen
+noch die verbindlichen Regeln für Scanurteile (B4) und Eskalationen (C4).
+
+### Scan-Datenbank einrichten
+
+1. In PowerShell im Projektordner den lokalen Microsoft SQL Server mit `docker compose up -d sql` starten.
+2. Die Umgebungsvariable `ConnectionStrings__Sims` auf die Ziel-Datenbank setzen.
+   Scan-API und Worker müssen dieselbe Datenbank verwenden.
+3. `.\scripts\scan-db.ps1` ausführen. EF Core legt zuerst die vier Scan-Tabellen aus B1
+   an und ergänzt danach Tickets und deren Änderungshistorie.
+
+Für das spätere Cloud-Deployment erzeugt `.\scripts\scan-db.ps1 -OutputSql .\scan-migration.sql`
+ein prüfbares SQL-Skript. Bei der Ausführung auf der Ziel-Datenbank überspringt es
+bereits eingespielte Migrationen. Beide Befehle benötigen das .NET 10 SDK und
+`dotnet ef` 10. [Details und Testaufruf](docs/worker/D3_Scanablauf_Uebergabe.txt)
 
  Grundlegende Werkzeuge installieren
  Bevor du das Projekt herunterlädst, müssen ein paar Programme auf deinem PC installiert sein.
