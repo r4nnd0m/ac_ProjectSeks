@@ -54,7 +54,8 @@ services:
       - Admin__Email=${ADMIN_EMAIL}
       - Admin__Password=${ADMIN_PASSWORD}
       - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGIN}
-      - Redis__ConnectionString=redis:6379,password=${REDIS_PASSWORD}
+      - ConnectionStrings__Redis=Redis:6379,password=${REDIS_PASSWORD}
+      - Migrations__Run=true
     networks:
       - frontend-net
       - backend-net
@@ -81,7 +82,8 @@ services:
       - Jwt__Issuer=${JWT_ISSUER}
       - Jwt__Audience=${JWT_AUDIENCE}
       - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGIN}
-      - Redis__ConnectionString=redis:6379,password=${REDIS_PASSWORD}
+      - ConnectionStrings__Redis=Redis:6379,password=${REDIS_PASSWORD}
+      - Migrations__Run=true
     networks:
       - frontend-net
       - backend-net
@@ -106,7 +108,7 @@ services:
       - Feeds__Urls__0=${FEED_URL_1}
       - Feeds__Urls__1=${FEED_URL_2}
       - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGIN}
-      - Redis__ConnectionString=redis:6379,password=${REDIS_PASSWORD}
+      - ConnectionStrings__Redis=Redis:6379,password=${REDIS_PASSWORD}
     networks:
       - frontend-net
     ports:
@@ -126,7 +128,7 @@ services:
       dockerfile: src/Worker/Dockerfile
     environment:
       - ConnectionStrings__Sims=Server=sql,1433;Database=sims;User Id=sa;Password=${SQL_PASSWORD};TrustServerCertificate=True
-      - Redis__ConnectionString=redis:6379,password=${REDIS_PASSWORD}
+      - ConnectionStrings__Redis=Redis:6379,password=${REDIS_PASSWORD}
       - Worker__PollIntervalSeconds=30
     networks:
       - backend-net
