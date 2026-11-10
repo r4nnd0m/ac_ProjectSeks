@@ -9,6 +9,7 @@ using ScanApi.Services;
 using Sims.Contracts;
 using Sims.Shared.Audit;
 using Sims.Shared.Data;
+using Sims.Shared.Extensions;
 using StackExchange.Redis;
 
 namespace ScanApi;
@@ -108,6 +109,7 @@ public class Program
         builder.Services.AddScoped<IProjectService, ProjectService>();
         builder.Services.AddScoped<ISbomParser, CycloneDxParser>();
         builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddEscalation(builder.Configuration);
         builder.Services.AddScoped<ITicketService, TicketService>();
         builder.Services.AddScoped<AuditService>();
         builder.Services.AddScoped<IAuditQueryService, AuditQueryService>();

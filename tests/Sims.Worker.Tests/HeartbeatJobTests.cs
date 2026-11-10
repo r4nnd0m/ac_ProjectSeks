@@ -76,7 +76,7 @@ public sealed class HeartbeatJobTests
             .Configure(options => options.PollIntervalSeconds = 86400);
         builder.Services.AddScoped<IScanProcessor>(_ => processor);
         builder.Services.AddScoped<IScanRecovery>(_ => processor);
-        builder.Services.AddHostedService<global::Worker.Worker>();
+        builder.Services.AddHostedService<global::Worker.ScanPollingService>();
         builder.Services.AddHostedService<HeartbeatJob>();
         using var host = builder.Build();
         await host.StartAsync();

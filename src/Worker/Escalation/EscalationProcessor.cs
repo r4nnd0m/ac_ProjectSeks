@@ -2,7 +2,7 @@ namespace Worker.Escalation;
 
 /// <summary>
 /// Verbindet Laden, Regelaufruf, Ticketänderung und Audit.
-/// Noch nicht im normalen Host angeschlossen: Die Adapter zu B1/C1/C4/C5 fehlen.
+/// Die registrierte C4-Regel entscheidet über Stufe, Rolle und Frist.
 /// </summary>
 public sealed class EscalationProcessor(
     IEscalationStore store,

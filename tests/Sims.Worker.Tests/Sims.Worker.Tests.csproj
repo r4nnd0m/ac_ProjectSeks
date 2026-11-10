@@ -17,5 +17,6 @@
   <ItemGroup>
     <Using Include="Xunit" />
     <ProjectReference Include="../../src/Worker/Worker.csproj" />
+    <ProjectReference Include="../../src/ScanApi/ScanApi.csproj" />
   </ItemGroup>
 </Project>
