@@ -9,7 +9,7 @@ using ScanApi.Services;
 using Sims.Contracts;
 using Sims.Shared.Audit;
 using Sims.Shared.Data;
-using Sims.Shared.Audit;
+using StackExchange.Redis;
 
 namespace ScanApi;
 
@@ -28,6 +28,14 @@ public class Program
         builder.Services.AddSimsSecurity();
         builder.Services.AddScoped<AuditService>();
         builder.Services.AddScoped<IAuditQueryService, AuditQueryService>();
+
+        var redisConnection = builder.Configuration.GetConnectionString("Redis");
+        if (!string.IsNullOrWhiteSpace(redisConnection))
+        {
+            var redisOptions = ConfigurationOptions.Parse(redisConnection);
+            redisOptions.AbortOnConnectFail = false;
+            builder.Services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisOptions));
+        }
 
         var jwtKey = builder.Configuration["Jwt:Key"] ?? "12345678901234567890123456789012";
         var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "sims-auth";
@@ -49,6 +57,39 @@ public class Program
                     ClockSkew = TimeSpan.FromSeconds(30),
                     RoleClaimType = ClaimNames.Role,
                     NameClaimType = ClaimNames.Name
+                };
+
+                options.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = async context =>
+                    {
+                        var jti = context.Principal?.FindFirst(ClaimNames.Jti)?.Value;
+                        if (string.IsNullOrWhiteSpace(jti))
+                        {
+                            context.Fail("Token ohne jti.");
+                            return;
+                        }
+
+                        try
+                        {
+                            var redis = context.HttpContext.RequestServices.GetService<IConnectionMultiplexer>();
+                            if (redis is null)
+                            {
+                                context.Fail("Redis-Blacklist nicht verfügbar.");
+                                return;
+                            }
+
+                            var value = await redis.GetDatabase().KeyExistsAsync($"auth:blacklist:{jti}");
+                            if (value)
+                            {
+                                context.Fail("Token wurde widerrufen.");
+                            }
+                        }
+                        catch
+                        {
+                            context.Fail("Redis-Blacklist ist nicht verfügbar.");
+                        }
+                    }
                 };
             });
 
