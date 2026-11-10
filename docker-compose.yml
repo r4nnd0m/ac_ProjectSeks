@@ -1,184 +1,167 @@
 services:
-  # Setzt einmalig die Rechte im MSSQL-Volume (User mssql = UID 10001) und beendet sich danach
+
+  
   sql-init:
     image: busybox:latest
     container_name: sql-init
     user: root
     command: ["sh", "-c", "mkdir -p /var/opt/mssql/data /var/opt/mssql/log /var/opt/mssql/secrets && chown -R 10001:0 /var/opt/mssql"]
     volumes:
-      - mssql_data:/var/opt/mssql
+      - sqldata:/var/opt/mssql
     restart: "no"
 
   sql:
     image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: sql
-    hostname: sql
     environment:
       ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
-    ports:
-      - "127.0.0.1:1433:1433"
+      MSSQL_SA_PASSWORD: ${SQL_PASSWORD}
     volumes:
-      - mssql_data:/var/opt/mssql
+      - sqldata:/var/opt/mssql
+    networks:
+      - backend-net
     depends_on:
       sql-init:
         condition: service_completed_successfully
-    networks:
-      - sims-net
-    restart: unless-stopped
-
-#  psql:
-#    image: postgres:latest
-#    container_name: psql
-#    hostname: psql
-#    environment:
-#      POSTGRES_USER: ${POSTGRES_USER}
-#      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-#      POSTGRES_DB: ${POSTGRES_DB}
-#    volumes:
-#      - postgres_data:/var/lib/postgresql/data
-#    healthcheck:
-#      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-#      interval: 5s
-#      timeout: 5s
-#      retries: 5
-#    networks:
-#      - sims-net
-#    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   redis:
-    image: redis:latest
-    container_name: redis
-    hostname: redis
-    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
-    ports:
-      - "127.0.0.1:6379:6379"
-    volumes:
-      - redis_data:/data
+    image: redis:7.2-alpine
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    networks:
+      - backend-net
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
-      interval: 5s
-      timeout: 5s
+      interval: 10s
+      timeout: 3s
       retries: 5
-    networks:
-      - sims-net
     restart: unless-stopped
 
+  auth-api:
+    build:
+      context: .
+      dockerfile: src/AuthApi/Dockerfile
+    environment:
+      - ConnectionStrings__Auth=Server=sql,1433;Database=sims;User Id=sa;Password=${SQL_PASSWORD};TrustServerCertificate=True
+      - Jwt__Key=${JWT_KEY}
+      - Jwt__Issuer=${JWT_ISSUER}
+      - Jwt__Audience=${JWT_AUDIENCE}
+      - Jwt__ExpiresMinutes=${JWT_EXPIRES_MINUTES}
+      - Admin__Email=${ADMIN_EMAIL}
+      - Admin__Password=${ADMIN_PASSWORD}
+      - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGIN}
+      - ConnectionStrings__Redis=Redis:6379,password=${REDIS_PASSWORD}
+      - Migrations__Run=true
+    networks:
+      - frontend-net
+      - backend-net
+    ports:
+      - "8081:8080"
+    depends_on:
+      sql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
 
-# Multi-Stage-Dockerfiles
-  # auth-api:
-  #   build:
-  #     context: ./src/AuthApi
-  #     dockerfile: Dockerfile
-  #   container_name: auth-api
-  #   hostname: auth-api
-  #   ports:
-  #     - "8081:8080"
-  #   environment:
-  #     - ConnectionStrings__Auth=${CONNECTION_STRINGS_AUTH}
-  #     - ConnectionStrings__Redis=${CONNECTION_STRINGS_REDIS}
-  #     - Jwt__Key=${JWT_KEY}
-  #     - Jwt__Issuer=${JWT_ISSUER}
-  #     - Jwt__Audience=${JWT_AUDIENCE}
-  #     - Jwt__ExpiresMinutes=${JWT_EXPIRES_MINUTES}
-  #     - Admin__Email=${ADMIN_EMAIL}
-  #     - Admin__Password=${ADMIN_PASSWORD}
-  #     - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS_0}
-  #     - Migrations__Run=${MIGRATIONS_RUN}
-  #   depends_on:
-  #     psql:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #   networks:
-  #     - sims-net
-  #   restart: unless-stopped
+  scan-api:
+    build:
+      context: .
+      dockerfile: src/ScanApi/Dockerfile
+    environment:
+      - ConnectionStrings__Sims=Server=sql,1433;Database=sims;User Id=sa;Password=${SQL_PASSWORD};TrustServerCertificate=True
+      - Jwt__Key=${JWT_KEY}
+      - Jwt__Issuer=${JWT_ISSUER}
+      - Jwt__Audience=${JWT_AUDIENCE}
+      - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGIN}
+      - ConnectionStrings__Redis=Redis:6379,password=${REDIS_PASSWORD}
+      - Migrations__Run=true
+    networks:
+      - frontend-net
+      - backend-net
+    ports:
+      - "8082:8080"
+    depends_on:
+      sql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
 
-  # scan-api:
-  #   build:
-  #     context: ./src/ScanApi
-  #     dockerfile: Dockerfile
-  #   container_name: scan-api
-  #   hostname: scan-api
-  #   ports:
-  #     - "8082:8080"
-  #   environment:
-  #     - ConnectionStrings__Sims=${CONNECTION_STRINGS_SIMS}
-  #     - ConnectionStrings__Redis=${CONNECTION_STRINGS_REDIS}
-  #     - Jwt__Key=${JWT_KEY}
-  #     - Jwt__Issuer=${JWT_ISSUER}
-  #     - Jwt__Audience=${JWT_AUDIENCE}
-  #     - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS_0}
-  #     - Migrations__Run=${MIGRATIONS_RUN}
-  #   depends_on:
-  #     psql:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #   networks:
-  #     - sims-net
-  #   restart: unless-stopped
+  news-api:
+    build:
+      context: .
+      dockerfile: src/NewsApi/Dockerfile
+    environment:
+      - Feeds__Urls__0=${FEED_URL_1}
+      - Feeds__Urls__1=${FEED_URL_2}
+      - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGIN}
+      - ConnectionStrings__Redis=Redis:6379,password=${REDIS_PASSWORD}
+    networks:
+      - frontend-net
+    ports:
+      - "8083:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
 
-  # news-api:
-  #   build:
-  #     context: ./src/NewsApi
-  #     dockerfile: Dockerfile
-  #   container_name: news-api
-  #   hostname: news-api
-  #   ports:
-  #     - "8083:8080"
-  #   environment:
-  #     - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS_0}
-  #     - Feeds__Urls__0=${FEEDS_URLS_0}
-  #     - News__RefreshMinutes=${NEWS_REFRESH_MINUTES}
-  #   networks:
-  #     - sims-net
-  #   restart: unless-stopped
-
-  # worker:
-  #   build:
-  #     context: ./src/Worker
-  #     dockerfile: Dockerfile
-  #   container_name: worker
-  #   hostname: worker
-  #   environment:
-  #     - ConnectionStrings__Sims=${CONNECTION_STRINGS_SIMS}
-  #     - ConnectionStrings__Redis=${CONNECTION_STRINGS_REDIS}
-  #     - Worker__PollIntervalSeconds=${WORKER_POLL_INTERVAL_SECONDS}
-  #     - Verdict__EpssNoGoThreshold=${VERDICT_EPSS_NOGO_THRESHOLD}
-  #     - Escalation__CriticalHours=${ESCALATION_CRITICAL_HOURS}
-  #     - Escalation__HighHours=${ESCALATION_HIGH_HOURS}
-  #     - Escalation__MediumHours=${ESCALATION_MEDIUM_HOURS}
-  #   depends_on:
-  #     psql:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #   networks:
-  #     - sims-net
-  #   restart: unless-stopped
+  worker:
+    build:
+      context: .
+      dockerfile: src/Worker/Dockerfile
+    environment:
+      - ConnectionStrings__Sims=Server=sql,1433;Database=sims;User Id=sa;Password=${SQL_PASSWORD};TrustServerCertificate=True
+      - ConnectionStrings__Redis=Redis:6379,password=${REDIS_PASSWORD}
+      - Worker__PollIntervalSeconds=30
+    networks:
+      - backend-net
+      - egress-net
+    depends_on:
+      sql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    security_opt:          # <-- Hier von Security_opt zu security_opt geändert
+      - no-new-privileges:true
+    cap_drop:             # <-- Hier von Cap_drop zu cap_drop geändert
+      - ALL
+    restart: unless-stopped
 
   # web:
   #   build:
-  #     context: ./src/Web
+  #     context: ./web
   #     dockerfile: Dockerfile
-  #   container_name: web
-  #   hostname: web
+  #   networks:
+  #     - frontend-net
   #   ports:
   #     - "8080:8080"
-  #   depends_on:
-  #     - auth-api
-  #     - scan-api
-  #     - news-api
-  #   networks:
-  #     - sims-net
   #   restart: unless-stopped
 
-networks:
-  sims-net:
-    driver: bridge
-
 volumes:
-  mssql_data:
-  postgres_data:
-  redis_data:
+  sqldata:
+
+networks:
+  frontend-net:
+    driver: bridge
+  backend-net:
+    internal: true
+    driver: bridge
+  egress-net:
+    driver: bridge

@@ -1,0 +1,55 @@
+SIMS Worker / D1 - gemeinsamer Redis-Logger für Auth-API und Scan-API
+Stand: 06.11.2026. Bibliothek vorhanden; Anschluss in fremden APIs nicht vorgenommen.
+
+Was ihr übernehmen könnt
+- Projektverweis auf src/Sims.Logging/Sims.Logging.csproj.
+- using Sims.Logging; sowie using StackExchange.Redis;
+- Die Erweiterung heißt AddRedis(ILoggingBuilder, IConnectionMultiplexer, string service).
+- Service-Namen: worker, auth-api, scan-api gemäß Schnittstellenvereinbarung.
+
+Anschluss vor builder.Build()
+Die vorhandene langlebige Redis-Verbindung der Anwendung wiederverwenden:
+
+builder.Services.AddSingleton<IConnectionMultiplexer>(mux);
+builder.Logging.AddRedis(mux, "scan-api");
+
+Für Auth-API entsprechend "auth-api". Nicht pro Logzeile neu verbinden und nicht
+dieselbe Verbindung mehrfach als Logger registrieren. Der Host bzw. der erzeugende
+Code muss die Verbindung am Programmende freigeben. Bei einer selbst erzeugten
+Verbindung AbortOnConnectFail=false setzen; Verbindungsdaten aus Konfiguration lesen.
+Ein vollständiges funktionierendes Beispiel steht in src/Worker/Program.cs.
+Der Worker erwartet ConnectionStrings:Redis (Umgebung: ConnectionStrings__Redis).
+Lokal läuft Redis auf localhost; innerhalb von Compose heißt der Dienst redis.
+Passwörter nicht in Quellcode, Logs oder Übergabedateien schreiben.
+
+Format in Redis
+Liste: logs. Neueste Einträge vorne. Maximal 10.000 Einträge nach dem Trimmen.
+Pro Eintrag ein JSON-Text mit genau diesen Feldern:
+id        zufällige Guid
+timestamp UTC-Zeit als JSON-Zeittext
+level     Information, Warning, Error oder Critical
+service   der übergebene Dienstname
+message   die formatierte Logmeldung
+
+Beispiel (erfundene Werte):
+{"id":"00000000-0000-0000-0000-000000000001","timestamp":"2030-01-01T12:00:00+00:00","level":"Information","service":"scan-api","message":"Scan-Auftrag angelegt."}
+
+Verhalten und Grenzen
+- Trace/Debug/None werden nicht gesendet; außerdem gelten die Host-Logfilter.
+- Exceptions ergänzen nur den Typ; keine automatische Message/Stacktrace-Ausgabe.
+- Selbst in message/Argumenten übergebene Secrets werden NICHT automatisch entfernt.
+  Die normalen Console-Logger haben ihre eigenen Formatregeln.
+- FireAndForget wartet nicht auf eine Redis-Bestätigung. Bei Ausfall können Logs
+  verloren gehen; die Konsole bleibt nutzbar. Logging-Fehler stoppen den Aufrufer nicht.
+- Kein Audit-Ersatz: fachliche Ticketnachweise kommen aus C5 in die gemeinsame DB.
+- Der vorhandene Logger hat 13 zuvor bestandene Tests. Unverändert in diesem Schritt.
+
+Gemeinsamer Kurztest nach dem Anschluss
+1. Redis starten und vorhandene lokale Konfiguration verwenden.
+2. In der jeweiligen API genau eine Information-Meldung mit erkennbarem Testtext auslösen.
+3. In Redis die Liste logs lesen: service, message, Format und Reihenfolge prüfen.
+4. Verbindung kurz nicht verfügbar: API soll weiterhin arbeiten und auf Konsole loggen.
+5. API sauber beenden; keine pro Meldung neu angelegten Verbindungen.
+
+Code liegt im Worker-Branch. Die Übernahme in main bzw. die API-Branches muss das
+Team abstimmen. Diese Datei wurde nicht automatisch an jemanden verschickt.
