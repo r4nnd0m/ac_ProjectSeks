@@ -1,4 +1,22 @@
-SIMS Worker - D4: vorbereitete Eskalation und benötigte Team-Adapter
+SIMS Worker - D4: Eskalation und Team-Adapter
+
+Anschluss an das Teammodell, 10.11.2026 (Basis main-test c346b8e)
+
+SqlEscalationStore liest überfällige, offene bzw. in Bearbeitung oder eskalierte C1-Tickets
+mit Stufe unter 3 direkt aus SQL. Der Wrapper arbeitet auf dem geladenen Ticket. SqlEscalationAudit
+ruft den C5-AuditService auf. Lesen, Eskalieren, Audit und Speichern teilen sich eine kurze
+Transaktion. Schlägt das Audit fehl, bleibt auch die Ticketstufe auf ihrem alten Wert.
+
+Offen für Christian: Die gemeinsame Klasse EscalationPolicy enthält aktuell nur die vorläufige
+StartFor-Methode für neu erstellte Tickets. Für bereits überfällige Tickets fehlt NextLevel.
+Sobald verfügbar, verbindet Stefan sie über IEscalationPolicy mit SqlEscalationTicket.Entity
+und registriert den Adapter vor AddWorkerDataServices. Erst dann wird D4 im normalen Host aktiv.
+
+Tests mit echtem SQL Server und festen Regelantworten zeigen Stufe 2/Lead und 3/Admin,
+ein Audit je Stufenwechsel, keine neue Eskalation für geschlossene Tickets und Rollback
+bei abgewiesenem Audit. Den Testaufruf findest du oben in D3_Scanablauf_Uebergabe.txt.
+
+Frühere Planung und Prüfergebnisse vom 06.11.2026
 Stand: 06.11.2026. Teilimplementierung, keine vollständige D4-Abnahme.
 
 Vorhanden unter src/Worker/Escalation (Namespace Worker.Escalation)

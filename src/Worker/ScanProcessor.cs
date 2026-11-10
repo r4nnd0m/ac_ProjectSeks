@@ -4,7 +4,7 @@ using Worker.Scanning;
 
 namespace Worker;
 
-/// <summary>Vorbereiteter D3-Ablauf. Die echten B1/B4/C3-Adapter fehlen noch.</summary>
+/// <summary>Verbindet die Scan-Aufträge mit Quellen, Urteil und Ticketerstellung.</summary>
 public sealed class ScanProcessor(
     IScanStore store, IOsvClient osv, IFindingEnricher enricher,
     IScanVerdictCalculator verdicts, IScanTicketPlanner tickets,
@@ -55,7 +55,16 @@ public sealed class ScanProcessor(
             // erneut erzeugen. Der SQL-Adapter muss atomar speichern. Fehler gehen an
             // den Job; ein verbliebenes Scanning wird beim Neustart erkannt.
             cancellationToken.ThrowIfCancellationRequested();
-            await store.CompleteAsync(scan.Id, completion, cancellationToken);
+            try
+            {
+                await store.CompleteAsync(scan.Id, completion, cancellationToken);
+            }
+            catch (ScanResultRejectedException)
+            {
+                logger.LogError("Scan {ScanId}: SQL hat die Ergebnisdaten abgewiesen. Die Änderungen wurden zurückgerollt.", scan.Id);
+                await store.FailAsync(scan.Id, FailureMessage, clock.GetUtcNow(), cancellationToken);
+                continue;
+            }
             logger.LogInformation("Scan {ScanId}: Scanned gespeichert; {Findings} Funde, {Tickets} neue Tickets, Urteil {Verdict}.",
                 scan.Id, completion.Findings.Count, completion.Tickets.Count, completion.Verdict);
         }

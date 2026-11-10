@@ -1,4 +1,41 @@
-SIMS Worker - vorbereiteter Scan-Ablauf und Neustartbehandlung
+SIMS Worker - Scan-Ablauf und Neustartbehandlung
+
+Anschluss an das Teammodell, 10.11.2026 (Basis main-test c346b8e)
+
+B1/B2/B3/B5 und C1/C3 sind integriert. SqlScanStore liest die ältesten Pending-Aufträge
+in SQL, übernimmt jeden bedingt und liefert die zugehörigen Komponenten. SqlTicketPlanner
+verknüpft die Funde über die Komponenten-ID, lädt das Projekt und ruft Leos TicketCreator
+mit vorhandenen Tickets auf. Findings, neue Tickets, Urteil und Scanned werden in einer
+SQL-Transaktion gespeichert. Eine bekannte, zurückgerollte Datenverletzung setzt den Scan
+auf Failed. Bei einem unklaren Commit-Ausgang überschreibt der Worker kein Ergebnis.
+
+Start über Program.cs: ConnectionStrings:Sims (Umgebung: ConnectionStrings__Sims) muss
+auf dieselbe Datenbank wie die Scan-API zeigen. Die Tabellen im Schema scan müssen
+vorhanden sein. Auf diesem main-test liegen Migrationen für Auth, aber keine für
+SimsDbContext. Den Einrichtungsweg für eine neue gemeinsame DB bitte mit Patrik klären.
+Auch ConnectionStrings:Redis wird wie bisher beim Worker-Start benötigt.
+
+Offen für Stefan nach Christians Lieferung: B4 über IScanVerdictCalculator anbinden und
+die echte C4-Startregel für C3 registrieren. Beides vor AddWorkerDataServices aufrufen.
+Die vorläufige StartFor-Version wird nur im Integrationstest ausdrücklich registriert.
+Bis dahin bleiben Scan-Polling und Neustartkorrektur im normalen Host pausiert, auch
+wenn eine SQL-Verbindung gesetzt ist. Das MVP sieht weiterhin eine aktive Worker-Instanz vor.
+
+Wiederholbarer SQL-Test für D3 und D4: Die Umgebungsvariable SIMS_WORKER_TEST_SQL auf den
+Verbindungsstring eines lokalen SQL-Testservers mit Rechten zum Anlegen von Datenbanken
+setzen. Dann vom Repo aus: dotnet test tests/Sims.Worker.Tests --filter FullyQualifiedName~SqlWorkerIntegrationTests
+Jeder SQL-Test verwendet eine eigene neue Datenbank mit Zufallsnamen, legt dort die Tabellen
+aus dem gemeinsamen EF-Modell an und räumt diese Testdatenbank danach auf. Ohne die Variable
+werden die SQL-Fälle übersprungen. Externe Quellen, B4 und C4 verwenden gezielte Testantworten.
+Der Upload-Test ruft Patriks Controller und Parser direkt auf und liest das Ergebnis über
+seine Ergebnisfunktion zurück. HTTP-Anmeldung, Browser und echte Regeln sind separate Abnahmen.
+
+Hinweis für Leo (C3): Ein zulässiger Komponentenname von 200 Zeichen ergibt zusammen
+mit Kennung und Version einen Titel über dem 200-Zeichen-Limit von C1. Das wurde auf
+SQL reproduziert. Der Worker rollt zurück, markiert nur diesen Scan als Failed und
+verarbeitet den nächsten Auftrag weiter. Die gemeinsame Titelerzeugung liegt in C3.
+
+Frühere Planung und Prüfergebnisse vom 06.11.2026
 Stand: 06.11.2026. Keine echte SQL-/B4-/C3-Integration; Verträge sind Worker-lokal.
 Ergänzt D2_OSV_Uebergabe.txt, D3_Anreicherung_Uebergabe.txt und D4_Eskalation_Uebergabe.txt.
 

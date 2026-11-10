@@ -7,7 +7,7 @@ internal sealed class UnconfiguredEscalationProcessor(ILogger<UnconfiguredEscala
     {
         ct.ThrowIfCancellationRequested();
         logger.LogInformation(
-            "D4-Platzhalter aktiv: Ticket-Datenbank, Eskalationsregeln und Audit noch nicht angeschlossen. Keine Tickets verändert.");
+            "Ticketeskalation pausiert. Sie benötigt ConnectionStrings:Sims und die registrierte Folgeregel (C4).");
         return Task.CompletedTask;
     }
 }

@@ -46,7 +46,7 @@ public class Worker(
     {
         try
         {
-            // Ein eigener Arbeitsbereich pro Durchlauf: später auch für den DbContext.
+            // Ein eigener Arbeitsbereich mit eigenem DbContext pro Durchlauf.
             // AsyncScope räumt ebenso Dienste mit asynchronem Dispose zuverlässig auf.
             await using var scope = scopes.CreateAsyncScope();
             if (!recoveryCompleted)

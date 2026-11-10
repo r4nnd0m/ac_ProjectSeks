@@ -3,7 +3,7 @@ using StackExchange.Redis;
 using Worker.Osv;
 using Worker.Enrichment;
 using Worker.Escalation;
-using Worker.Scanning;
+using Worker;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -41,9 +41,7 @@ redisOptions.ClientName = "sims-worker";
 using var redis = await ConnectionMultiplexer.ConnectAsync(redisOptions);
 builder.Services.AddSingleton<IConnectionMultiplexer>(redis);
 builder.Logging.AddRedis(redis, "worker");
-// Erst mit echten B1/B4/C3-Adaptern auf ScanProcessor/ScanRecovery umstellen.
-builder.Services.AddScoped<Worker.IScanProcessor, UnconfiguredScanProcessor>();
-builder.Services.AddScoped<IScanRecovery, UnconfiguredScanRecovery>();
+builder.Services.AddWorkerDataServices(builder.Configuration.GetConnectionString("Sims"));
 builder.Services.AddOsvClient();
 builder.Services.AddKevClient();
 builder.Services.AddEpssClient();
@@ -51,8 +49,6 @@ builder.Services.AddScoped<IFindingEnricher, FindingEnricher>();
 builder.Services.AddHostedService<Worker.Worker>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHostedService<Worker.HeartbeatJob>();
-// Erst nach Anschluss von B1/C1/C4/C5 durch EscalationProcessor ersetzen.
-builder.Services.AddScoped<IEscalationProcessor, UnconfiguredEscalationProcessor>();
 builder.Services.AddHostedService<EscalationJob>();
 
 using var host = builder.Build();
