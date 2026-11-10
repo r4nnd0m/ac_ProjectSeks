@@ -1,4 +1,5 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using AuthApi.Data;
 using AuthApi.Models;
 using AuthApi.Options;
@@ -103,6 +104,17 @@ public class Program
 
         builder.Services.AddSingleton<ITokenBlacklist, RedisTokenBlacklist>();
 
+        builder.Services.AddRateLimiter(o =>
+        {
+            o.RejectionStatusCode = 429;
+            o.AddPolicy("login", ctx => RateLimitPartition.GetFixedWindowLimiter(
+                ctx.Connection.RemoteIpAddress?.ToString() ?? "unbekannt",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 5,
+                    Window = TimeSpan.FromMinutes(1)
+                }));
+        });
 
         var app = builder.Build();
 
@@ -128,6 +140,8 @@ public class Program
         }
 
         app.UseHttpsRedirection();
+
+        app.UseRateLimiter();
 
         app.UseAuthentication();
 
