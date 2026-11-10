@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using Sims.Contracts;
+using StackExchange.Redis;
 
 namespace sims;
 
@@ -71,6 +72,13 @@ public class Program
         {
             o.AddPolicy(Policies.AdminOnly, p => p.RequireRole(Roles.Admin));
             o.AddPolicy(Policies.MfaRequired, p => p.RequireClaim(ClaimNames.Mfa, "true"));
+        });
+
+        builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+        {
+            ConfigurationOptions opt = ConfigurationOptions.Parse(builder.Configuration.GetConnectionString("Redis")!);
+            opt.AbortOnConnectFail = false;
+            return ConnectionMultiplexer.Connect(opt);
         });
 
         var app = builder.Build();
