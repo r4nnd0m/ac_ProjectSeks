@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AuthApi/AuthApi.csproj" />
+    <Project Path="src/NewsApi/NewsApi.csproj" />
+    <Project Path="src/ScanApi/ScanApi.csproj" />
+    <Project Path="src/Sims.Contracts/Sims.Contracts.csproj" />
+    <Project Path="src/Sims.Logging/Sims.Logging.csproj" />
+    <Project Path="src/Sims.Shared/Sims.Shared.csproj" />
+    <Project Path="src/Worker/Worker.csproj" />
+  </Folder>
+</Solution>
