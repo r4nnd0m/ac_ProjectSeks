@@ -483,3 +483,4 @@ $RECYCLE.BIN/
 
 .idea/
 .env
+/tests/Sims.Auth.Tests

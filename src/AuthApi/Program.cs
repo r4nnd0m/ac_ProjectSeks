@@ -73,6 +73,9 @@ public class Program
             o.AddPolicy(Policies.MfaRequired, p => p.RequireClaim(ClaimNames.Mfa, "true"));
         });
 
+        builder.Services.AddScoped<UserService>();
+        builder.Services.AddScoped<TeamService>();
+
         var app = builder.Build();
 
         if (app.Configuration["Migrations:Run"] == "true")
