@@ -7,6 +7,7 @@ using AuthApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
@@ -99,7 +100,8 @@ public class MfaController : ControllerBase
         await _userManager.SetTwoFactorEnabledAsync(user, true);
         return NoContent();
     }
-
+    
+    [EnableRateLimiting("login")]
     [HttpPost("verify")]
     public async Task<IActionResult> Verify(MfaVerifyRequest request)
     {
