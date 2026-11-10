@@ -154,12 +154,12 @@ services:
 
   web:
     build:
-      context: ./Web
+      context: ./src/Web
       dockerfile: Dockerfile
     networks:
       - frontend-net
     ports:
-      - "8080:8080"
+      - "8080:80"
     restart: unless-stopped
 
 volumes:
