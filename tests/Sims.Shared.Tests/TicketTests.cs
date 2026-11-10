@@ -141,5 +141,4 @@ public class TicketTests
 
         Assert.Throws<InvalidOperationException>(() => ticket.AcceptRisk(DateTimeOffset.UtcNow));
     }
-
 }
