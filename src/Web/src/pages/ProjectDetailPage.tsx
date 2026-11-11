@@ -7,8 +7,9 @@ import { useAuth } from '../auth/AuthContext';
 import { scanApi } from '../api/scanApi';
 import { describeError } from '../api/http';
 import { EmptyState, ErrorBox, Field, Spinner, StatusBadge } from '../components/ui';
+import { verdictLabels } from '../utils';
 import { formatDateTime, formatDate } from '../utils';
-import type { ProjectDto, ScanListItemDto } from '../types';
+import type { ProjectDto, ScanSummaryDto } from '../types';
 
 const MAX_SBOM_BYTES = 5 * 1024 * 1024; // 5 MB (Auftrag E3)
 
@@ -37,7 +38,7 @@ export function ProjectDetailPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [project, setProject] = useState<ProjectDto | null>(null);
-  const [scans, setScans] = useState<ScanListItemDto[] | null>(null);
+  const [scans, setScans] = useState<ScanSummaryDto[] | null>(null);
   const [error, setError] = useState<unknown>(null);
 
   const [version, setVersion] = useState('');
@@ -88,8 +89,8 @@ export function ProjectDetailPage() {
     }
     setUploading(true);
     try {
-      const scan = await scanApi.createScan(token, id, version.trim(), sbomText);
-      navigate(`/scans/${scan.id}`);
+      const created = await scanApi.createScan(token, id, version.trim(), sbomText);
+      navigate(`/scans/${created.scanId}`);
     } catch (err) {
       setUploadError(describeError(err));
     } finally {
@@ -102,7 +103,7 @@ export function ProjectDetailPage() {
       <h1>{project ? `Projekt: ${project.name}` : 'Projekt'}</h1>
       {project ? (
         <p className="hint">
-          Team: {project.teamName} · Angelegt am {formatDate(project.createdAt)} · Projektkennung{' '}
+          Angelegt am {formatDate(project.createdAt)} · Projektkennung{' '}
           <code>{project.id}</code>
         </p>
       ) : null}
@@ -116,7 +117,6 @@ export function ProjectDetailPage() {
         <table>
           <thead>
             <tr>
-              <th>Scan</th>
               <th>Version</th>
               <th>Status</th>
               <th>Urteil</th>
@@ -127,11 +127,10 @@ export function ProjectDetailPage() {
             {scans.map((s) => (
               <tr key={s.id}>
                 <td>
-                  <Link to={`/scans/${s.id}`}>{s.id}</Link>
+                  <Link to={`/scans/${s.id}`}>{s.version}</Link>
                 </td>
-                <td>{s.version}</td>
                 <td><StatusBadge status={s.status} /></td>
-                <td>{s.verdict ?? <span className="hint">–</span>}</td>
+                <td>{s.verdict ? verdictLabels[s.verdict] : <span className="hint">–</span>}</td>
                 <td>{formatDateTime(s.createdAt)}</td>
               </tr>
             ))}
@@ -151,7 +150,7 @@ export function ProjectDetailPage() {
         </p>
         <form onSubmit={onUpload}>
           <Field label="Versionsangabe" hint="Zum Beispiel 1.4.0 – erscheint später im Scan.">
-            <input value={version} onChange={(e) => setVersion(e.target.value)} placeholder="1.0.0" required />
+            <input value={version} onChange={(e) => setVersion(e.target.value)} placeholder="1.0.0" required maxLength={50} />
           </Field>
           <Field label="CycloneDX-Datei" hint="Alternativ kannst du den JSON-Inhalt unten direkt einfügen.">
             <input

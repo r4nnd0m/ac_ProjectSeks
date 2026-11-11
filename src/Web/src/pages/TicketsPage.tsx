@@ -1,5 +1,5 @@
-// E4: Ticketliste mit Filter nach Status, Schweregrad und „Meine Tickets“
-// sowie Seitenwechsel. Das Anlegen neuer Tickets ist hier ebenfalls möglich.
+// E4: Ticketliste (GET /tickets) mit Filtern nach Status, Schweregrad und
+// „Meine Tickets“ sowie Seitenwahl (Paging beginnt bei 1). Neue Tickets per POST /tickets.
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
@@ -7,7 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import { scanApi } from '../api/scanApi';
 import { EmptyState, ErrorBox, Field, SeverityBadge, Spinner, StatusBadge } from '../components/ui';
 import { dueLabel } from '../utils';
-import type { PagedDto, ProjectDto, Severity, TicketListItemDto, TicketStatus } from '../types';
+import type { PagedDto, ProjectDto, Severity, TicketDto, TicketStatus } from '../types';
 
 const PAGE_SIZE = 10;
 
@@ -19,7 +19,7 @@ export function TicketsPage() {
   const [mine, setMine] = useState(false);
   const [page, setPage] = useState(1);
 
-  const [result, setResult] = useState<PagedDto<TicketListItemDto> | null>(null);
+  const [result, setResult] = useState<PagedDto<TicketDto> | null>(null);
   const [error, setError] = useState<unknown>(null);
 
   const reload = useCallback(() => {
@@ -29,7 +29,7 @@ export function TicketsPage() {
       .listTickets(token, {
         status: status || undefined,
         severity: severity || undefined,
-        mine: mine || undefined,
+        assignedToMe: mine || undefined,
         page,
         pageSize: PAGE_SIZE,
       })
@@ -159,15 +159,14 @@ function NewTicketForm({ onCreated }: { onCreated: () => void }) {
   const [description, setDescription] = useState('');
   const [projectId, setProjectId] = useState('');
   const [severity, setSeverity] = useState<Severity>('Medium');
+  const [cve, setCve] = useState('');
+  const [system, setSystem] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
   useEffect(() => {
     if (!token || !open) return;
-    scanApi.listProjects(token).then((list) => {
-      setProjects(list);
-      if (list[0]) setProjectId(list[0].id);
-    }).catch(setError);
+    scanApi.listProjects(token).then(setProjects).catch(setError);
   }, [token, open]);
 
   async function onSubmit(e: FormEvent) {
@@ -176,9 +175,18 @@ function NewTicketForm({ onCreated }: { onCreated: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      await scanApi.createTicket(token, { title: title.trim(), description: description.trim(), projectId, severity });
+      await scanApi.createTicket(token, {
+        title: title.trim(),
+        description: description.trim(),
+        severity,
+        cve: cve.trim() || null,
+        system: system.trim() || null,
+        projectId: projectId || null,
+      });
       setTitle('');
       setDescription('');
+      setCve('');
+      setSystem('');
       setOpen(false);
       onCreated();
     } catch (err) {
@@ -192,25 +200,16 @@ function NewTicketForm({ onCreated }: { onCreated: () => void }) {
     <div className="card">
       <h2>
         <button type="button" className="linkbtn" onClick={() => setOpen((o) => !o)}>
-          {open ? 'Formular ausblenden' : 'Neues Ticket anlegen'}
+          {open ? 'Formular ausblenden' : 'Neuen Vorfall erfassen'}
         </button>
       </h2>
       {open ? (
         <form onSubmit={onSubmit}>
           <Field label="Titel">
-            <input value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={150} />
+            <input value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={200} />
           </Field>
           <Field label="Beschreibung">
-            <textarea rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
-          </Field>
-          <Field label="Projekt">
-            <select value={projectId} onChange={(e) => setProjectId(e.target.value)} required>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.teamName})
-                </option>
-              ))}
-            </select>
+            <textarea rows={4} value={description} onChange={(e) => setDescription(e.target.value)} required maxLength={4000} />
           </Field>
           <Field label="Schweregrad">
             <select value={severity} onChange={(e) => setSeverity(e.target.value as Severity)}>
@@ -220,9 +219,23 @@ function NewTicketForm({ onCreated }: { onCreated: () => void }) {
               <option value="Low">Niedrig</option>
             </select>
           </Field>
+          <Field label="Projekt (optional)">
+            <select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+              <option value="">– kein Projekt –</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="CVE (optional)" hint="Format CVE-JJJJ-NNNN, z. B. CVE-2021-44228">
+            <input value={cve} onChange={(e) => setCve(e.target.value)} pattern="CVE-[0-9]{4}-[0-9]{4,}" maxLength={30} />
+          </Field>
+          <Field label="Betroffenes System (optional)">
+            <input value={system} onChange={(e) => setSystem(e.target.value)} maxLength={200} />
+          </Field>
           {error ? <ErrorBox error={error} /> : null}
-          <button type="submit" disabled={busy || !title.trim() || !projectId}>
-            {busy ? 'Wird angelegt…' : 'Ticket anlegen'}
+          <button type="submit" disabled={busy || !title.trim() || !description.trim()}>
+            {busy ? 'Wird angelegt…' : 'Vorfall erfassen'}
           </button>
         </form>
       ) : null}

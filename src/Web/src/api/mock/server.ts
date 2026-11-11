@@ -1,453 +1,345 @@
-// Der „Pseudo-Server“ des Demo-Modus: bildet die API-Aufrufe auf die
-// erfundene Speichersimulation ab. Rechte- und Teamprüfungen sind hier nur
-// nachgebaut, damit die Demo realistisch wirkt – verbindlich ist später die
-// Prüfung im Backend.
+// „Pseudo-Server“ des Demo-Modus: bildet die API-Aufrufe auf die erfundenen
+// Daten ab und liefert dieselben Antwortformen und Statuscodes wie das echte
+// Backend. Die Rechteprüfungen sind nur nachgebaut – verbindlich prüft das Backend.
 
 import type {
   AuditEntryDto,
-  AuthSessionDto,
-  LoginResultDto,
+  CreateTicketInput,
+  CreateUserInput,
+  LoginResponseDto,
+  MeDto,
   MfaSetupDto,
   NewsItemDto,
   PagedDto,
   ProjectDto,
+  ScanCreatedDto,
   ScanDetailDto,
-  ScanListItemDto,
-  SessionUserDto,
+  ScanSummaryDto,
   TeamDto,
-  TicketDetailDto,
-  TicketListItemDto,
+  TicketDto,
   TicketQuery,
+  UpdateTicketInput,
   UserDto,
 } from '../../types';
-import { ApiError } from '../http';
-import {
-  DEMO_MFA_CODE,
-  db,
-  nextId,
-  persist,
-  recordAudit,
-  scheduleScan,
-  type MockUserRecord,
-} from './db';
+import { ApiError, MESSAGES } from '../http';
+import { DEMO_MFA_CODE, db, nextId, persist, recordAudit, scheduleScan, type MockTicket, type MockUser } from './db';
 
-const LATENCY_MS = 250;
+const LATENCY_MS = 150;
+const delay = () => new Promise<void>((r) => setTimeout(r, LATENCY_MS));
 
-function delay(): Promise<void> {
-  return new Promise((r) => setTimeout(r, LATENCY_MS));
+function base64Url(text: string): string {
+  return btoa(unescape(encodeURIComponent(text))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-function toSession(user: MockUserRecord, mfaVerified: boolean): SessionUserDto {
-  return {
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    role: user.role,
-    teamId: user.teamId,
-    mfaVerified,
-    mfaEnabled: user.mfaEnabled,
-  };
+/** Erfundenes Token im JWT-Format (unsigniert), damit die Oberfläche den mfa-Claim lesen kann. */
+function issueToken(user: MockUser, mfa: boolean): string {
+  const payload = { sub: user.id, role: user.role, team_id: user.teamId, mfa: mfa ? 'true' : 'false', jti: nextId('jti') };
+  const token = `demo.${base64Url(JSON.stringify(payload))}.demo`;
+  db.sessions[token] = { userId: user.id, mfa };
+  return token;
 }
 
-function session(token: string | null): SessionUserDto {
-  if (!token) throw new ApiError(401, 'Bitte melde dich an, um fortzufahren.', 'expired');
-  const user = db.sessions[token];
-  if (!user) throw new ApiError(401, 'Deine Anmeldung ist abgelaufen. Bitte melde dich erneut an.', 'expired');
-  return user;
+function current(token: string | null): { user: MockUser; mfa: boolean } {
+  const s = token ? db.sessions[token] : undefined;
+  const user = s ? db.users.find((u) => u.id === s.userId && u.isActive) : undefined;
+  if (!s || !user) throw new ApiError(401, MESSAGES.expired, 'expired');
+  return { user, mfa: s.mfa };
 }
 
-function requireRole(user: SessionUserDto, roles: string[]): void {
-  if (!roles.includes(user.role)) {
-    throw new ApiError(403, 'Dafür fehlen dir die Rechte. Maßgeblich ist die Prüfung im Backend.', 'forbidden');
-  }
+function requireAdmin(user: MockUser): void {
+  if (user.role !== 'Admin') throw new ApiError(403, MESSAGES.forbidden, 'forbidden');
 }
 
-/** Developer und Lead sehen nur das eigene Team, Admin teamübergreifend (E2). */
-function canSeeTeam(user: SessionUserDto, teamId: string): boolean {
+function canSee(user: MockUser, teamId: string): boolean {
   return user.role === 'Admin' || user.teamId === teamId;
 }
 
-function projectTeamId(projectId: string): string {
-  const project = db.projects.find((p) => p.id === projectId);
-  if (!project) throw new ApiError(404, 'Projekt nicht gefunden.', 'notfound');
-  return project.teamId;
-}
+const loginResult = (accessToken: string): LoginResponseDto => ({ accessToken, expiresInSeconds: 900, mfaRequired: false, mfaToken: null });
+const toProject = ({ teamId: _t, ...p }: ProjectDto & { teamId: string }): ProjectDto => p;
+const toTicket = ({ teamId: _t, assigneeId: _a, ...t }: MockTicket): TicketDto => t;
+const toUser = ({ password: _p, ...u }: MockUser): UserDto => u;
 
-export function ticketListItem(t: TicketDetailDto): TicketListItemDto {
-  const { audit: _audit, description: _desc, scanId: _scan, findingId: _finding, updatedAt: _upd, ...list } = t;
-  return list;
-}
+// ------------------------------------------------------------------ Auth --
 
-// ---------------------------------------------------------------- Auth ----
-
-export async function mockLogin(email: string, password: string): Promise<LoginResultDto> {
+export async function mockLogin(email: string, password: string): Promise<LoginResponseDto> {
   await delay();
-  const user = db.users.find((u) => u.email.toLowerCase() === email.toLowerCase() && u.active);
-  if (!user || user.password !== password) {
-    throw new ApiError(401, 'E-Mail oder Passwort passt nicht. (Demo: Passwort demo1234, siehe Hinweise)', 'expired');
-  }
+  const user = db.users.find((u) => u.email.toLowerCase() === email.toLowerCase() && u.isActive);
+  if (!user || user.password !== password) throw new ApiError(401, 'Anmeldung fehlgeschlagen.', 'expired');
   if (user.mfaEnabled) {
     const mfaToken = nextId('mfa');
     db.pendingMfa[mfaToken] = user.id;
-    return { mfaRequired: true, mfaToken };
+    return { accessToken: null, expiresInSeconds: null, mfaRequired: true, mfaToken };
   }
-  const token = nextId('tok');
-  db.sessions[token] = toSession(user, false);
-  persist();
-  return { mfaRequired: false, session: { token, user: toSession(user, false) } };
+  return loginResult(issueToken(user, false));
 }
 
-export async function mockVerifyMfa(mfaToken: string, code: string): Promise<AuthSessionDto> {
+export async function mockVerifyMfa(mfaToken: string, code: string): Promise<LoginResponseDto> {
   await delay();
-  const userId = db.pendingMfa[mfaToken];
-  const user = userId ? db.users.find((u) => u.id === userId) : undefined;
-  if (!user) throw new ApiError(401, 'Der Anmeldeschritt ist abgelaufen. Bitte neu anmelden.', 'expired');
-  if (code.trim() !== DEMO_MFA_CODE) {
-    throw new ApiError(401, 'Der Einmalcode ist ungültig. (Demo-Code: 123456)', 'expired');
-  }
+  const user = db.users.find((u) => u.id === db.pendingMfa[mfaToken]);
+  if (!user || code.trim() !== DEMO_MFA_CODE) throw new ApiError(401, 'Anmeldung fehlgeschlagen.', 'expired');
   delete db.pendingMfa[mfaToken];
-  const token = nextId('tok');
-  db.sessions[token] = toSession(user, true);
-  persist();
-  return { token, user: toSession(user, true) };
+  return loginResult(issueToken(user, true));
 }
 
-export async function mockMe(token: string): Promise<SessionUserDto> {
+export async function mockMe(token: string): Promise<MeDto> {
   await delay();
-  return session(token);
+  const { user } = current(token);
+  return { id: user.id, email: user.email, role: user.role, teamId: user.teamId, mfaEnabled: user.mfaEnabled };
+}
+
+export async function mockLogout(token: string): Promise<void> {
+  await delay();
+  current(token);
+  delete db.sessions[token];
 }
 
 export async function mockSetupMfa(token: string): Promise<MfaSetupDto> {
   await delay();
-  const user = session(token);
-  const secret = 'JBSWY3DPEHPK3PX' + user.id.slice(-3).toUpperCase().replace(/[^A-Z0-9]/g, 'X');
-  db.mfaSecrets[user.id] = secret;
-  const label = encodeURIComponent(`SIMS Demo: ${user.name}`);
-  const url = `otpauth://totp/${label}?secret=${secret}&issuer=SIMS-Demo&algorithm=SHA1&digits=6&period=30`;
-  return { secret, otpauthUrl: url };
+  const { user } = current(token);
+  if (user.mfaEnabled) throw new ApiError(409, MESSAGES.conflict, 'conflict');
+  const secret = 'JBSWY3DPEHPK3PXP';
+  const label = encodeURIComponent(`SIMS:${user.email}`);
+  return { secret, otpauthUri: `otpauth://totp/${label}?secret=${secret}&issuer=SIMS&digits=6` };
 }
 
 export async function mockConfirmMfa(token: string, code: string): Promise<void> {
   await delay();
-  const user = session(token);
-  if (code.trim() !== DEMO_MFA_CODE) {
-    throw new ApiError(400, 'Der Bestätigungscode ist ungültig. (Demo-Code: 123456)', 'input');
-  }
-  const record = db.users.find((u) => u.id === user.id);
-  if (!record) throw new ApiError(404, 'Benutzer nicht gefunden.', 'notfound');
-  record.mfaEnabled = true;
-  db.sessions[token] = { ...user, mfaEnabled: true };
+  const { user } = current(token);
+  if (code.trim() !== DEMO_MFA_CODE) throw new ApiError(400, MESSAGES.input, 'input');
+  user.mfaEnabled = true;
   persist();
 }
 
-// ------------------------------------------------------------ Projekte ----
+// ------------------------------------------------------------- Projekte --
 
 export async function mockListProjects(token: string): Promise<ProjectDto[]> {
   await delay();
-  const user = session(token);
-  return db.projects.filter((p) => canSeeTeam(user, p.teamId));
+  const { user } = current(token);
+  return db.projects.filter((p) => canSee(user, p.teamId)).map(toProject);
 }
 
 export async function mockCreateProject(token: string, name: string): Promise<ProjectDto> {
   await delay();
-  const user = session(token);
-  const project: ProjectDto = {
-    id: nextId('p'),
-    name,
-    teamId: user.teamId,
-    teamName: db.teams.find((t) => t.id === user.teamId)?.name ?? '',
-    createdAt: new Date().toISOString(),
-  };
+  const { user } = current(token);
+  const project = { id: nextId('p'), name, teamId: user.teamId, createdAt: new Date().toISOString() };
   db.projects.push(project);
   persist();
-  return project;
+  return toProject(project);
 }
 
+/** Fremde und fehlende Projekte liefern beide 404 (wie B3). */
 export async function mockGetProject(token: string, projectId: string): Promise<ProjectDto> {
   await delay();
-  const user = session(token);
+  const { user } = current(token);
   const project = db.projects.find((p) => p.id === projectId);
-  if (!project) throw new ApiError(404, 'Projekt nicht gefunden.', 'notfound');
-  if (!canSeeTeam(user, project.teamId)) {
-    throw new ApiError(403, 'Dieses Projekt gehört einem anderen Team. Für dich nicht sichtbar (B3).', 'forbidden');
-  }
-  return project;
+  if (!project || !canSee(user, project.teamId)) throw new ApiError(404, MESSAGES.notfound, 'notfound');
+  return toProject(project);
 }
 
-export async function mockListProjectScans(token: string, projectId: string): Promise<ScanListItemDto[]> {
+export async function mockListProjectScans(token: string, projectId: string): Promise<ScanSummaryDto[]> {
   await mockGetProject(token, projectId);
   return db.scans
     .filter((s) => s.projectId === projectId)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .map(({ findings: _f, errorMessage: _e, ...rest }) => rest);
+    .map((s) => ({ id: s.id, version: s.version, status: s.status, verdict: s.verdict, createdAt: s.createdAt }));
 }
 
-/** B2: POST /projects/{id}/scans?version=… – liefert die neue scanId. */
-export async function mockCreateScan(
-  token: string,
-  projectId: string,
-  version: string,
-  bomJson: string,
-): Promise<ScanListItemDto> {
-  await delay();
+export async function mockCreateScan(token: string, projectId: string, version: string, bomJson: string): Promise<ScanCreatedDto> {
   await mockGetProject(token, projectId);
-  let parsed: unknown;
+  let bom: { bomFormat?: unknown; components?: unknown };
   try {
-    parsed = JSON.parse(bomJson);
+    bom = JSON.parse(bomJson) as typeof bom;
   } catch {
-    throw new ApiError(400, 'Das war kein gültiges JSON.', 'input');
+    throw new ApiError(400, MESSAGES.input, 'input', ['Die Datei ist kein gültiges JSON.']);
   }
-  const bom = parsed as { bomFormat?: unknown; components?: unknown };
   if (bom.bomFormat !== 'CycloneDX' || !Array.isArray(bom.components)) {
-    throw new ApiError(400, 'Erwartet wird CycloneDX-JSON mit einem components-Feld.', 'input');
+    throw new ApiError(400, MESSAGES.input, 'input', ['Erwartet wird CycloneDX-JSON mit components.']);
   }
   const scan: ScanDetailDto = {
-    id: nextId('s'),
-    projectId,
-    version,
-    status: 'Pending',
-    verdict: null,
-    createdAt: new Date().toISOString(),
-    finishedAt: null,
-    errorMessage: null,
-    findings: [],
+    id: nextId('s'), projectId, version, status: 'Pending', verdict: null,
+    errorMessage: null, createdAt: new Date().toISOString(), finishedAt: null, findings: [],
   };
   db.scans.unshift(scan);
   persist();
-  // Momentaufnahme vor der Zeitsteuerung: im Browser bleibt der Scan erst
-  // 'Pending'; in Testlaufzeiten ohne Timer endet er sofort.
-  const snapshot = { ...scan };
   scheduleScan(scan);
-  return snapshot;
+  return { scanId: scan.id, status: 'Pending' };
 }
-
-// --------------------------------------------------------------- Scans ----
 
 export async function mockGetScan(token: string, scanId: string): Promise<ScanDetailDto> {
   await delay();
   const scan = db.scans.find((s) => s.id === scanId);
-  if (!scan) throw new ApiError(404, 'Scan nicht gefunden.', 'notfound');
+  if (!scan) throw new ApiError(404, MESSAGES.notfound, 'notfound');
   await mockGetProject(token, scan.projectId);
   return { ...scan, findings: [...scan.findings] };
 }
 
-// ------------------------------------------------------------- Tickets ----
+// -------------------------------------------------------------- Tickets --
 
-export async function mockListTickets(
-  token: string,
-  query: TicketQuery,
-): Promise<PagedDto<TicketListItemDto>> {
+function visibleTicket(token: string, ticketId: string): { user: MockUser; ticket: MockTicket } {
+  const { user } = current(token);
+  const ticket = db.tickets.find((t) => t.id === ticketId);
+  if (!ticket || !canSee(user, ticket.teamId)) throw new ApiError(404, MESSAGES.notfound, 'notfound');
+  return { user, ticket };
+}
+
+function isFinished(t: MockTicket): boolean {
+  return t.status === 'Closed' || t.status === 'RiskAccepted';
+}
+
+export async function mockListTickets(token: string, query: TicketQuery): Promise<PagedDto<TicketDto>> {
   await delay();
-  const user = session(token);
-  let items = db.tickets.filter((t) => canSeeTeam(user, t.teamId));
+  const { user } = current(token);
+  let items = db.tickets.filter((t) => canSee(user, t.teamId));
   if (query.status) items = items.filter((t) => t.status === query.status);
   if (query.severity) items = items.filter((t) => t.severity === query.severity);
-  if (query.mine) items = items.filter((t) => t.assigneeName === user.name);
+  if (query.assignedToMe) items = items.filter((t) => t.assigneeId === user.id);
   const page = query.page ?? 1;
-  const pageSize = query.pageSize ?? 10;
+  const pageSize = query.pageSize ?? 20;
   const start = (page - 1) * pageSize;
-  return {
-    items: items.slice(start, start + pageSize).map(ticketListItem),
-    page,
-    pageSize,
-    totalCount: items.length,
-  };
+  return { items: items.slice(start, start + pageSize).map(toTicket), page, pageSize, totalCount: items.length };
 }
 
-export async function mockGetTicket(token: string, ticketId: string): Promise<TicketDetailDto> {
+export async function mockGetTicket(token: string, ticketId: string): Promise<TicketDto> {
   await delay();
-  const user = session(token);
-  const ticket = db.tickets.find((t) => t.id === ticketId);
-  if (!ticket) throw new ApiError(404, 'Ticket nicht gefunden.', 'notfound');
-  if (!canSeeTeam(user, ticket.teamId)) {
-    throw new ApiError(403, 'Dieses Ticket gehört einem anderen Team.', 'forbidden');
-  }
-  return { ...ticket, audit: [...ticket.audit] };
+  return toTicket(visibleTicket(token, ticketId).ticket);
 }
 
-export async function mockCreateTicket(
-  token: string,
-  input: { title: string; description: string; projectId: string; severity: TicketDetailDto['severity'] },
-): Promise<TicketDetailDto> {
+export async function mockCreateTicket(token: string, input: CreateTicketInput): Promise<TicketDto> {
   await delay();
-  const user = session(token);
-  const teamId = projectTeamId(input.projectId);
-  if (!canSeeTeam(user, teamId)) {
-    throw new ApiError(403, 'Du kannst keine Tickets für ein fremdes Team anlegen.', 'forbidden');
+  const { user } = current(token);
+  let teamId = user.teamId;
+  if (input.projectId) {
+    const project = db.projects.find((p) => p.id === input.projectId);
+    if (!project || !canSee(user, project.teamId)) throw new ApiError(404, MESSAGES.notfound, 'notfound');
+    teamId = project.teamId;
   }
-  const ticket: TicketDetailDto = {
-    id: nextId('tk'),
-    title: input.title,
-    description: input.description || null,
-    severity: input.severity,
-    status: 'Open',
-    escalationLevel: 1,
-    assignedRole: null,
-    dueAt: input.severity === 'Critical' ? new Date(Date.now() + 4 * 3_600_000).toISOString()
-      : input.severity === 'High' ? new Date(Date.now() + 24 * 3_600_000).toISOString()
-      : input.severity === 'Medium' ? new Date(Date.now() + 72 * 3_600_000).toISOString()
-      : null,
-    assigneeName: null,
-    teamId,
-    projectId: input.projectId,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    scanId: null,
-    findingId: null,
-    audit: [],
+  const hours = { Critical: 4, High: 24, Medium: 72, Low: null }[input.severity];
+  const ticket: MockTicket = {
+    id: nextId('tk'), title: input.title, description: input.description, severity: input.severity, status: 'Open',
+    cve: input.cve, system: input.system, projectId: input.projectId, reporterName: user.email,
+    assigneeName: null, assigneeId: null, assignedRole: null, escalationLevel: 1,
+    dueAt: hours === null ? null : new Date(Date.now() + hours * 3_600_000).toISOString(),
+    createdAt: new Date().toISOString(), closedAt: null, teamId,
   };
   db.tickets.unshift(ticket);
-  recordAudit(user, 'TicketCreated', ticket.id, 'Manuell angelegt');
+  recordAudit(user.email, 'TicketCreated', ticket.id, 'Manuell angelegt [DEMO]');
   persist();
-  return ticket;
+  return toTicket(ticket);
 }
 
-export async function mockUpdateTicket(
-  token: string,
-  ticketId: string,
-  patch: { title?: string; description?: string },
-): Promise<TicketDetailDto> {
+export async function mockUpdateTicket(token: string, ticketId: string, input: UpdateTicketInput): Promise<TicketDto> {
   await delay();
-  const user = session(token);
-  const ticket = await mockGetTicket(token, ticketId);
-  const target = db.tickets.find((t) => t.id === ticket.id)!;
-  if (patch.title !== undefined) target.title = patch.title;
-  if (patch.description !== undefined) target.description = patch.description || null;
-  target.updatedAt = new Date().toISOString();
-  target.audit.push(recordAudit(user, 'TicketUpdated', target.id, 'Bearbeitet über die Oberfläche [DEMO]'));
+  const { user, ticket } = visibleTicket(token, ticketId);
+  if (isFinished(ticket)) throw new ApiError(409, 'Das Ticket ist bereits abgeschlossen.', 'conflict');
+  ticket.title = input.title;
+  ticket.description = input.description;
+  ticket.severity = input.severity;
+  recordAudit(user.email, 'TicketUpdated', ticket.id, 'Bearbeitet [DEMO]');
   persist();
-  return { ...target };
+  return toTicket(ticket);
 }
 
-/** C2: POST /tickets/{id}/take – persönliche Übernahme. */
-export async function mockTakeTicket(token: string, ticketId: string): Promise<TicketDetailDto> {
+export async function mockTakeTicket(token: string, ticketId: string): Promise<void> {
   await delay();
-  const user = session(token);
-  const ticket = await mockGetTicket(token, ticketId);
-  const target = db.tickets.find((t) => t.id === ticket.id)!;
-  if (target.status === 'Closed' || target.status === 'RiskAccepted') {
-    throw new ApiError(409, 'Ein abgeschlossenes Ticket kann nicht übernommen werden.', 'input');
+  const { user, ticket } = visibleTicket(token, ticketId);
+  if (isFinished(ticket)) throw new ApiError(409, 'Das Ticket ist bereits abgeschlossen.', 'conflict');
+  ticket.assigneeId = user.id;
+  ticket.assigneeName = user.email;
+  ticket.status = 'InProgress';
+  recordAudit(user.email, 'TicketTaken', ticket.id, 'Übernommen [DEMO]');
+  persist();
+}
+
+export async function mockCloseTicket(token: string, ticketId: string): Promise<void> {
+  await delay();
+  const { user, ticket } = visibleTicket(token, ticketId);
+  if (isFinished(ticket)) throw new ApiError(409, 'Das Ticket ist bereits abgeschlossen.', 'conflict');
+  ticket.status = 'Closed';
+  ticket.closedAt = new Date().toISOString();
+  ticket.dueAt = null;
+  recordAudit(user.email, 'TicketClosed', ticket.id, 'Geschlossen [DEMO]');
+  persist();
+}
+
+/** Wie im Backend: AdminOnly + MfaRequired, Begründung 20 bis 2000 Zeichen. */
+export async function mockAcceptRisk(token: string, ticketId: string, justification: string): Promise<void> {
+  await delay();
+  const { user, mfa } = current(token);
+  if (user.role !== 'Admin' || !mfa) throw new ApiError(403, MESSAGES.forbidden, 'forbidden');
+  const { ticket } = visibleTicket(token, ticketId);
+  const len = justification.trim().length;
+  if (len < 20 || len > 2000) {
+    throw new ApiError(400, MESSAGES.input, 'input', ['Die Begründung muss zwischen 20 und 2000 Zeichen lang sein.']);
   }
-  target.assigneeName = user.name;
-  target.status = 'InProgress';
-  target.updatedAt = new Date().toISOString();
-  target.audit.push(recordAudit(user, 'TicketTaken', target.id, `Persönlich übernommen von ${user.name} [DEMO]`));
+  if (isFinished(ticket)) throw new ApiError(409, 'Das Ticket ist bereits abgeschlossen.', 'conflict');
+  ticket.status = 'RiskAccepted';
+  ticket.closedAt = new Date().toISOString();
+  ticket.dueAt = null;
+  recordAudit(user.email, 'RiskAccepted', ticket.id, `Begründung: ${justification.trim()} [DEMO]`);
   persist();
-  return { ...target };
 }
 
-export async function mockCloseTicket(token: string, ticketId: string): Promise<TicketDetailDto> {
+export async function mockListAudit(token: string, page: number, pageSize: number): Promise<PagedDto<AuditEntryDto>> {
   await delay();
-  const user = session(token);
-  const ticket = await mockGetTicket(token, ticketId);
-  const target = db.tickets.find((t) => t.id === ticket.id)!;
-  target.status = 'Closed';
-  target.dueAt = null;
-  target.updatedAt = new Date().toISOString();
-  target.audit.push(recordAudit(user, 'TicketClosed', target.id, 'Geschlossen [DEMO]'));
-  persist();
-  return { ...target };
+  requireAdmin(current(token).user);
+  const start = (page - 1) * pageSize;
+  return { items: db.audit.slice(start, start + pageSize), page, pageSize, totalCount: db.audit.length };
 }
 
-/** E4: Nur Admin mit bestätigtem zweitem Faktor, Begründung mindestens 20 Zeichen. */
-export async function mockAcceptRisk(token: string, ticketId: string, reason: string): Promise<TicketDetailDto> {
-  await delay();
-  const user = session(token);
-  const ticket = await mockGetTicket(token, ticketId);
-  requireRole(user, ['Admin']);
-  if (!user.mfaVerified) {
-    throw new ApiError(403, 'Risiko nur akzeptierbar, wenn du mit zweitem Faktor angemeldet bist.', 'forbidden');
-  }
-  if (reason.trim().length < 20) {
-    throw new ApiError(400, 'Die Begründung muss mindestens 20 Zeichen haben.', 'input');
-  }
-  const target = db.tickets.find((t) => t.id === ticket.id)!;
-  target.status = 'RiskAccepted';
-  target.dueAt = null;
-  target.updatedAt = new Date().toISOString();
-  target.audit.push(recordAudit(user, 'RiskAccepted', target.id, `Begründung: ${reason.trim()} [DEMO]`));
-  persist();
-  return { ...target };
-}
-
-// --------------------------------------------------------- Verwaltung ----
+// ----------------------------------------------------------- Verwaltung --
 
 export async function mockListUsers(token: string): Promise<UserDto[]> {
   await delay();
-  const user = session(token);
-  requireRole(user, ['Admin']);
-  return db.users.map(({ password: _password, ...rest }) => rest);
+  requireAdmin(current(token).user);
+  return [...db.users].sort((a, b) => a.email.localeCompare(b.email)).map(toUser);
 }
 
-export async function mockCreateUser(
-  token: string,
-  input: { email: string; name: string; role: UserDto['role']; teamId: string },
-): Promise<UserDto> {
+export async function mockCreateUser(token: string, input: CreateUserInput): Promise<UserDto> {
   await delay();
-  const user = session(token);
-  requireRole(user, ['Admin']);
-  const team = db.teams.find((t) => t.id === input.teamId);
-  if (!team) throw new ApiError(400, 'Team nicht gefunden.', 'input');
-  if (db.users.some((u) => u.email.toLowerCase() === input.email.toLowerCase())) {
-    throw new ApiError(409, 'Diese E-Mail wird schon verwendet.', 'input');
-  }
-  const created: MockUserRecord = {
-    id: nextId('u'),
-    email: input.email,
-    name: input.name,
-    role: input.role,
-    teamId: team.id,
-    teamName: team.name,
-    active: true,
-    mfaEnabled: false,
-    password: 'demo1234',
-  };
+  const { user } = current(token);
+  requireAdmin(user);
+  const errors: string[] = [];
+  if (!['Developer', 'Lead', 'Admin'].includes(input.role)) errors.push('Unbekannte Rolle');
+  if (!db.teams.some((t) => t.id === input.teamId)) errors.push('Unbekannte TeamID');
+  if (input.password.length < 12) errors.push('Passwords must be at least 12 characters.');
+  if (db.users.some((u) => u.email.toLowerCase() === input.email.toLowerCase())) errors.push(`Email '${input.email}' is already taken.`);
+  if (errors.length > 0) throw new ApiError(400, 'Der User konnte nicht angelegt werden.', 'input', errors);
+  const created: MockUser = { id: nextId('u'), email: input.email, role: input.role, teamId: input.teamId, isActive: true, mfaEnabled: false, password: input.password };
   db.users.push(created);
-  recordAudit(user, 'UserCreated', null, `${input.email} (${input.role}) angelegt [DEMO]`);
   persist();
-  const { password: _password, ...rest } = created;
-  return rest;
+  return toUser(created);
 }
 
-export async function mockDisableUser(token: string, userId: string): Promise<void> {
+export async function mockDeactivateUser(token: string, userId: string): Promise<void> {
   await delay();
-  const user = session(token);
-  requireRole(user, ['Admin']);
+  const { user } = current(token);
+  requireAdmin(user);
+  if (user.id === userId) throw new ApiError(400, 'Der eigene Account kann nicht deaktiviert werden.', 'input');
   const target = db.users.find((u) => u.id === userId);
-  if (!target) throw new ApiError(404, 'Benutzer nicht gefunden.', 'notfound');
-  target.active = false;
-  recordAudit(user, 'UserDisabled', null, `${target.email} deaktiviert [DEMO]`);
+  if (!target) throw new ApiError(404, MESSAGES.notfound, 'notfound');
+  target.isActive = false;
+  for (const [tok, s] of Object.entries(db.sessions)) if (s.userId === userId) delete db.sessions[tok];
   persist();
 }
 
 export async function mockListTeams(token: string): Promise<TeamDto[]> {
   await delay();
-  const user = session(token);
-  requireRole(user, ['Admin']);
-  return [...db.teams];
+  requireAdmin(current(token).user);
+  return [...db.teams].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function mockCreateTeam(token: string, name: string): Promise<TeamDto> {
   await delay();
-  const user = session(token);
-  requireRole(user, ['Admin']);
+  requireAdmin(current(token).user);
+  if (db.teams.some((t) => t.name === name)) throw new ApiError(409, 'Ein Team mit diesem Namen gibt es schon.', 'conflict');
   const team: TeamDto = { id: nextId('team'), name };
   db.teams.push(team);
-  recordAudit(user, 'TeamCreated', null, `${name} angelegt [DEMO]`);
   persist();
   return team;
 }
 
-export async function mockListAudit(token: string): Promise<AuditEntryDto[]> {
-  await delay();
-  const user = session(token);
-  requireRole(user, ['Admin']);
-  return [...db.audit];
-}
+// ----------------------------------------------------------------- News --
 
-// ---------------------------------------------------------------- News ----
-
-/** Öffentlich, ohne Anmeldung (E5). */
 export async function mockListNews(): Promise<NewsItemDto[]> {
   await delay();
   return [...db.news].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));

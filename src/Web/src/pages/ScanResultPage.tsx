@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { scanApi } from '../api/scanApi';
+import { describeError } from '../api/http';
 import { EmptyState, ErrorBox, SeverityBadge, Spinner, StatusBadge, VerdictDisplay } from '../components/ui';
 import { epssPercent, formatDateTime, severityOrder } from '../utils';
 import { USE_MOCKS } from '../config';
@@ -81,7 +82,7 @@ export function ScanResultPage() {
       {error && !scan ? <ErrorBox error={error} /> : null}
       {error && scan ? (
         <div className="errorbox" role="alert">
-          Die letzte Aktualisierung ist fehlgeschlagen: {String((error as Error).message ?? error)}
+          Die letzte Aktualisierung ist fehlgeschlagen: {describeError(error)}
         </div>
       ) : null}
       {!scan && !error ? <Spinner label="Scan wird geladen…" /> : null}
@@ -106,7 +107,7 @@ export function ScanResultPage() {
               <span className="spinner" aria-hidden="true" />
               Die Seite fragt den Status alle 3 Sekunden ab
               {lastPoll ? ` · zuletzt ${formatDateTime(lastPoll)}` : ''}
-              {USE_MOCKS ? ' · im Demo-Modus dauert ein Scan rund 7 Sekunden' : ''}.
+              {USE_MOCKS ? ' · im Demo-Modus dauert ein Scan rund 4 Sekunden' : ''}.
             </p>
           ) : null}
           {timedOut ? (
@@ -157,7 +158,7 @@ export function ScanResultPage() {
                 {findings.map((f) => (
                   <tr key={f.id}>
                     <td><SeverityBadge severity={f.severity} /></td>
-                    <td>{f.componentName}</td>
+                    <td>{f.component}</td>
                     <td>{f.componentVersion}</td>
                     <td>
                       {f.cve ? <code>{f.cve}</code> : null}{' '}

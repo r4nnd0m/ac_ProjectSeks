@@ -24,7 +24,7 @@ export function Layout() {
           {USE_MOCKS ? <DemoBadge /> : null}
           {user ? (
             <span className="who">
-              {user.name} · {user.role}
+              {user.email} · {user.role}
               {user.mfaVerified ? ' · 2FA bestätigt' : ''}
             </span>
           ) : (
@@ -34,7 +34,7 @@ export function Layout() {
             <button
               className="linkbtn"
               onClick={() => {
-                logout();
+                void logout();
                 navigate('/login');
               }}
             >
@@ -70,7 +70,6 @@ export function Layout() {
         ) : (
           <p>
             APIs: Auth {simsConfig.authUrl} · Scan {simsConfig.scanUrl} · News {simsConfig.newsUrl}
-            (Basis-URLs in public/config.js)
           </p>
         )}
       </footer>

@@ -1,22 +1,13 @@
-// SIMS – Laufzeitkonfiguration für die Weboberfläche.
-// Diese Datei wird vor dem eigentlichen Bundle geladen und liefert die
-// Basis-URLs der drei APIs über window.SIMS_CONFIG (Auftrag E1).
+// SIMS – Laufzeitkonfiguration der Weboberfläche (Auftrag E1).
+// Wird vor dem Bundle geladen und liefert die Basis-URLs der drei APIs.
 //
-// Die Werte sind bewusst NICHT im Bundle enthalten, damit der Betrieb sie
-// ohne Neubaustand anpassen kann.
-// window.SIMS_CONFIG = {
-//   // Auth-API (Anmeldung, Zwei-Faktor) – lokal Port 8081
-//   authUrl: 'http://localhost:8081',
-//   // Scan-API (Projekte, Scans, Tickets, Verwaltung) – lokal Port 8082
-//   scanUrl: 'http://localhost:8082',
-//   // News-API (öffentliche Sicherheitsmeldungen) – lokal Port 8083
-//   newsUrl: 'http://localhost:8083',
-// };
-
-// Analye chwe
-
+// Die Oberfläche spricht alle APIs über denselben Ursprung an:
+//   - im Docker-Betrieb leitet nginx /api/auth, /api/scan und /api/news weiter,
+//   - im Entwicklungsmodus (npm run dev) erledigt das der Proxy in vite.config.ts.
+// So braucht der Browser kein CORS. Für einen anderen Betrieb kann diese Datei
+// ersetzt werden, ohne das Bundle neu zu bauen.
 window.SIMS_CONFIG = {
-  authUrl: 'http://localhost:8080/api/auth',
-  scanUrl: 'http://localhost:8080/api/scan',
-  newsUrl: 'http://localhost:8080/api/news',
+  authUrl: '/api/auth',
+  scanUrl: '/api/scan',
+  newsUrl: '/api/news',
 };

@@ -1,8 +1,8 @@
-// E4: Teams anzeigen und anlegen (nur Admins).
+// E4: Teams anzeigen (GET /teams) und anlegen (POST /teams, 409 bei doppeltem Namen). Nur Admins, Auth-API.
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '../auth/AuthContext';
-import { scanApi } from '../api/scanApi';
+import { adminApi } from '../api/adminApi';
 import { AdminTabs } from '../components/AdminTabs';
 import { EmptyState, ErrorBox, Field, Spinner } from '../components/ui';
 import type { TeamDto } from '../types';
@@ -18,7 +18,7 @@ export function AdminTeamsPage() {
   const reload = useCallback(() => {
     if (!token) return;
     setError(null);
-    scanApi.listTeams(token).then(setTeams).catch(setError);
+    adminApi.listTeams(token).then(setTeams).catch(setError);
   }, [token]);
 
   useEffect(reload, [reload]);
@@ -29,7 +29,7 @@ export function AdminTeamsPage() {
     setBusy(true);
     setCreateError(null);
     try {
-      await scanApi.createTeam(token, name.trim());
+      await adminApi.createTeam(token, name.trim());
       setName('');
       reload();
     } catch (err) {
