@@ -4,11 +4,19 @@
 //
 // Die Werte sind bewusst NICHT im Bundle enthalten, damit der Betrieb sie
 // ohne Neubaustand anpassen kann.
+// window.SIMS_CONFIG = {
+//   // Auth-API (Anmeldung, Zwei-Faktor) – lokal Port 8081
+//   authUrl: 'http://localhost:8081',
+//   // Scan-API (Projekte, Scans, Tickets, Verwaltung) – lokal Port 8082
+//   scanUrl: 'http://localhost:8082',
+//   // News-API (öffentliche Sicherheitsmeldungen) – lokal Port 8083
+//   newsUrl: 'http://localhost:8083',
+// };
+
+// Analye chwe
+
 window.SIMS_CONFIG = {
-  // Auth-API (Anmeldung, Zwei-Faktor) – lokal Port 8081
-  authUrl: 'http://localhost:8081',
-  // Scan-API (Projekte, Scans, Tickets, Verwaltung) – lokal Port 8082
-  scanUrl: 'http://localhost:8082',
-  // News-API (öffentliche Sicherheitsmeldungen) – lokal Port 8083
-  newsUrl: 'http://localhost:8083',
+  authUrl: 'http://localhost:8080/api/auth',
+  scanUrl: 'http://localhost:8080/api/scan',
+  newsUrl: 'http://localhost:8080/api/news',
 };

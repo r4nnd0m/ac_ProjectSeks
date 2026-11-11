@@ -156,10 +156,13 @@ services:
     build:
       context: ./src/Web
       dockerfile: Dockerfile
+    volumes:
+      - ./src/Web/public/config.js:/usr/share/nginx/html/config.js
     networks:
       - frontend-net
+      - backend-net
     ports:
-      - "8080:80"
+      - "8080:8080"
     restart: unless-stopped
 
 volumes:
