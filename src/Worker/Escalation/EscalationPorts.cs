@@ -1,7 +1,7 @@
 namespace Worker.Escalation;
 
-// Vorläufige Worker-Anschlüsse, solange B1/C1/C4/C5 noch fehlen.
-// Adapter sollen später die gemeinsamen Klassen aufrufen, nicht deren Regeln kopieren.
+// SQL-Store und Audit verwenden die gemeinsamen B1/C1/C5-Typen.
+// Die Entscheidung zur nächsten Stufe kommt über den C4-Adapter.
 public interface IEscalationTicket
 {
     Guid Id { get; }
@@ -21,7 +21,7 @@ public interface IEscalationPolicy
 
 public interface IEscalationStore
 {
-    // Später: eine gefilterte EF-Abfrage und Wrapper um dieselben getrackten C1-Tickets.
+    // Der SQL-Store liefert Wrapper um die getrackten C1-Tickets.
     Task<IReadOnlyList<IEscalationTicket>> GetDueTicketsAsync(DateTimeOffset now, CancellationToken ct);
 
     // Ticketänderungen UND vorgemerkte Audit-Einträge in EINEM DbContext atomar speichern.

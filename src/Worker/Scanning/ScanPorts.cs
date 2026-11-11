@@ -17,6 +17,10 @@ public sealed record ScanCompletion(
     IReadOnlyList<EnrichedFinding> Findings, ScanVerdict Verdict,
     IPreparedScanTickets Tickets, DateTimeOffset FinishedAt);
 
+// Nur nach bestätigtem Rollback. Ein unklarer Commit-Ausgang ist kein solcher Fehler.
+public sealed class ScanResultRejectedException(Exception cause)
+    : Exception("SQL hat die Ergebnisdaten abgewiesen.", cause);
+
 public interface IScanStore
 {
     // Schon in SQL auf Pending filtern, nach CreatedAt/Id ordnen und begrenzen.

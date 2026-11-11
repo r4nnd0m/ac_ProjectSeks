@@ -1,5 +1,3 @@
-/// Definiert Schlüssel (Namen) für die Daten 
-
 namespace Sims.Contracts;
 
 public static class ClaimNames

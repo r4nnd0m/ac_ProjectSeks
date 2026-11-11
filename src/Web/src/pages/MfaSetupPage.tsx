@@ -8,6 +8,8 @@ import { useAuth } from '../auth/AuthContext';
 import { authApi } from '../api/authApi';
 import { USE_MOCKS } from '../config';
 import { ErrorBox, Field, Spinner } from '../components/ui';
+import { ApiError } from '../api/http';
+import { DEMO_MFA_CODE } from '../api/mock/db';
 import type { MfaSetupDto } from '../types';
 
 export function MfaSetupPage() {
@@ -28,7 +30,7 @@ export function MfaSetupPage() {
       .then(async (data) => {
         if (stopped) return;
         setSetup(data);
-        const url = await QRCode.toDataURL(data.otpauthUrl, { margin: 1 });
+        const url = await QRCode.toDataURL(data.otpauthUri, { margin: 1 });
         if (!stopped) setQrDataUrl(url);
       })
       .catch((err) => {
@@ -40,6 +42,17 @@ export function MfaSetupPage() {
   }, [token]);
 
   if (!token || !user) return null;
+
+  if (loadError instanceof ApiError && loadError.kind === 'conflict') {
+    return (
+      <div>
+        <h1>Zwei-Faktor-Anmeldung</h1>
+        <div className="noticebox" role="status">
+          Für dein Konto ist die Zwei-Faktor-Anmeldung bereits aktiv.
+        </div>
+      </div>
+    );
+  }
 
   if (done) {
     return (
@@ -89,17 +102,25 @@ export function MfaSetupPage() {
             Secret zum manuellen Eintragen: <span className="secret">{setup.secret}</span>
           </p>
           <p className="hint">
-            Anmeldekette für Apps, die den QR-Code nicht lesen können: <span className="secret">{setup.otpauthUrl}</span>
+            Anmeldekette für Apps, die den QR-Code nicht lesen können: <span className="secret">{setup.otpauthUri}</span>
           </p>
         </div>
       ) : null}
       {setup ? (
         <div className="card">
           <h2>Schritt 2: Bestätigen</h2>
-          {USE_MOCKS ? <p className="hint">Demo-Modus: als Bestätigungscode genügt <code>123456</code>.</p> : null}
+          {USE_MOCKS ? <p className="hint">Demo-Modus: als Bestätigungscode genügt <code>{DEMO_MFA_CODE}</code>.</p> : null}
           <form onSubmit={onConfirm}>
             <Field label="Code aus der App">
-              <input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" required />
+              <input
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                autoComplete="one-time-code"
+                required
+              />
             </Field>
             {confirmError ? <ErrorBox error={confirmError} /> : null}
             <button type="submit" disabled={confirmBusy}>

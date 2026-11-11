@@ -1,7 +1,7 @@
 // E2: Zweiter Anmeldeschritt mit Einmalcode, wenn die API ihn verlangt.
 
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { describeError } from '../api/http';
 import { Field } from '../components/ui';
@@ -13,10 +13,7 @@ export function MfaLoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!pendingMfaToken) {
-    navigate('/login', { replace: true });
-    return null;
-  }
+  if (!pendingMfaToken) return <Navigate to="/login" replace />;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -46,8 +43,9 @@ export function MfaLoginPage() {
               value={code}
               onChange={(e) => setCode(e.target.value)}
               inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={10}
+              pattern="[0-9]{6}"
+              maxLength={6}
+              autoComplete="one-time-code"
               autoFocus
               required
             />

@@ -37,9 +37,8 @@ public class Program
             .AddDefaultTokenProviders();
 
         builder.Services.AddDataProtection();
-
-        builder.Services.AddControllers();
-        // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+        // fix chwe
+        builder.Services.AddControllers().AddJsonOptions(options => { options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;});
         builder.Services.AddOpenApi();
 
         builder.Services.AddHealthChecks();

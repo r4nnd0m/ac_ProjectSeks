@@ -4,6 +4,7 @@ using ScanApi.Dtos;
 using ScanApi.Extensions;
 using Sims.Shared.Audit;
 using Sims.Shared.Data;
+using Sims.Shared.Escalation;
 using Sims.Shared.Entities;
 
 namespace ScanApi.Services;
@@ -25,7 +26,7 @@ public interface ITicketService
     Task<TicketOutcome> AcceptRiskAsync(Guid id, AcceptRiskRequest request, ClaimsPrincipal user, CancellationToken ct = default);
 }
 
-public class TicketService(SimsDbContext db, TimeProvider clock, AuditService audit) : ITicketService
+public class TicketService(SimsDbContext db, TimeProvider clock, AuditService audit, EscalationPolicy escalation) : ITicketService
 {
     public async Task<PagedResponse<TicketResponse>> ListAsync(TicketFilter filter, ClaimsPrincipal user, CancellationToken ct = default)
     {
@@ -82,6 +83,8 @@ public class TicketService(SimsDbContext db, TimeProvider clock, AuditService au
             teamId = project.TeamId;
         }
 
+        var now = clock.GetUtcNow();
+        var start = escalation.StartFor(request.Severity, isKev: false, now);
         NewTicket data = new NewTicket(
             teamId,
             request.Title,
@@ -91,9 +94,12 @@ public class TicketService(SimsDbContext db, TimeProvider clock, AuditService au
             user.GetUserName(),
             ProjectId: request.ProjectId,
             Cve: request.Cve,
-            System: request.System);
+            System: request.System,
+            EscalationLevel: start.Level,
+            AssignedRole: start.AssignedRole,
+            DueAt: start.DueAt);
 
-        Ticket ticket = new Ticket(data, clock.GetUtcNow());
+        Ticket ticket = new Ticket(data, now);
         db.Tickets.Add(ticket);
         await db.SaveChangesAsync(ct);
 

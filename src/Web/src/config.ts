@@ -1,4 +1,6 @@
 // Liest die Basis-URLs aus public/config.js (window.SIMS_CONFIG, Auftrag E1).
+// Im Code stehen keine Hostnamen. Ohne config.js gilt derselbe Ursprung wie
+// die Weboberfläche (nginx bzw. der Vite-Proxy leiten /api/... weiter).
 
 export interface SimsRunConfig {
   authUrl: string;
@@ -13,21 +15,23 @@ declare global {
 }
 
 const fallback: SimsRunConfig = {
-  authUrl: 'http://localhost:8081',
-  scanUrl: 'http://localhost:8082',
-  newsUrl: 'http://localhost:8083',
+  authUrl: '/api/auth',
+  scanUrl: '/api/scan',
+  newsUrl: '/api/news',
 };
 
+const runtime = typeof window !== 'undefined' ? window.SIMS_CONFIG : undefined;
+
 export const simsConfig: SimsRunConfig = {
-  authUrl: (typeof window !== 'undefined' ? window.SIMS_CONFIG?.authUrl : undefined) ?? fallback.authUrl,
-  scanUrl: (typeof window !== 'undefined' ? window.SIMS_CONFIG?.scanUrl : undefined) ?? fallback.scanUrl,
-  newsUrl: (typeof window !== 'undefined' ? window.SIMS_CONFIG?.newsUrl : undefined) ?? fallback.newsUrl,
+  authUrl: runtime?.authUrl ?? fallback.authUrl,
+  scanUrl: runtime?.scanUrl ?? fallback.scanUrl,
+  newsUrl: runtime?.newsUrl ?? fallback.newsUrl,
 };
 
 /**
  * Demo-Modus: erfundene Testdaten statt echter API-Aufrufe.
- * Aktiviert durch VITE_USE_MOCKS=true. Ohne gesetzte Variable läuft die
- * Demo automatisch, damit die Oberfläche ohne Backends vorführbar ist.
- * Für echte API-Verbindungen VITE_USE_MOCKS=false setzen.
+ * VITE_USE_MOCKS=true schaltet ihn ein. Ohne gesetzte Variable läuft die
+ * Demo, damit die Oberfläche ohne Backends vorführbar ist. Das Docker-Image
+ * baut mit VITE_USE_MOCKS=false.
  */
 export const USE_MOCKS = (import.meta.env.VITE_USE_MOCKS ?? 'true') !== 'false';

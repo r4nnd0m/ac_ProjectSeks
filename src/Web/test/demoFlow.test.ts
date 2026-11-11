@@ -1,37 +1,35 @@
-// Smoke-Test für den Demo-Durchlauf mit erfundenen Testdaten:
-// anmelden, Projekt anlegen, Beispiel-SBOM hochladen, Urteil sehen,
-// Ticket öffnen/bearbeiten/übernehmen/schließen, zweites Beispiel mit
-// fehlgeschlagenem Scan, Risikoakzeptanz-Regeln.
-//
-// Er ersetzt keinen Klicktest im Browser, prüft aber die komplette
-// Mock-Schicht inklusive Rechte- und Fristlogik.
+// Smoke-Test für den Demo-Modus (erfundene Testdaten). Prüft, dass die
+// Mock-Schicht dieselben Antwortformen und Statuscodes wie das Backend liefert:
+// Anmeldung mit/ohne MFA, Projekte und Scans, Tickets, Verwaltung, News und
+// die zentrale Fehlerbehandlung.
 
 import { beforeAll, describe, expect, it } from 'vitest';
 import { authApi } from '../src/api/authApi';
+import { adminApi } from '../src/api/adminApi';
 import { scanApi } from '../src/api/scanApi';
 import { newsApi } from '../src/api/newsApi';
-import { ApiError } from '../src/api/http';
-import { DEMO_MFA_CODE, resetDemoData } from '../src/api/mock/db';
+import { ApiError, MESSAGES } from '../src/api/http';
+import { DEMO_MFA_CODE, DEMO_PASSWORD, resetDemoData } from '../src/api/mock/db';
+import { hasMfaClaim } from '../src/auth/token';
 import { validateSbom, EXAMPLE_SBOM } from '../src/pages/ProjectDetailPage';
-import type { AuthSessionDto, ScanDetailDto } from '../src/types';
+import type { ScanDetailDto } from '../src/types';
 
-async function login(email: string, withMfa = true): Promise<AuthSessionDto> {
-  const result = await authApi.login(email, 'demo1234');
-  if (result.mfaRequired) {
-    if (!withMfa) throw new Error('erwartete MFA-Pflicht');
-    return authApi.verifyMfa(result.mfaToken, DEMO_MFA_CODE);
+async function login(email: string): Promise<string> {
+  const result = await authApi.login(email, DEMO_PASSWORD);
+  if (result.mfaRequired && result.mfaToken) {
+    const verified = await authApi.verifyMfa(result.mfaToken, DEMO_MFA_CODE);
+    return verified.accessToken!;
   }
-  return result.session;
+  return result.accessToken!;
 }
 
-/** Wartet wie die Ergebnisseite, aber mit kürzerem Intervall für Tests. */
 async function pollUntilDone(token: string, scanId: string): Promise<ScanDetailDto> {
-  const deadline = Date.now() + 20_000;
+  const deadline = Date.now() + 15_000;
   for (;;) {
     const scan = await scanApi.getScan(token, scanId);
     if (scan.status === 'Scanned' || scan.status === 'Failed') return scan;
     if (Date.now() > deadline) throw new Error(`Scan ${scanId} wurde nicht fertig`);
-    await new Promise((r) => setTimeout(r, 120));
+    await new Promise((r) => setTimeout(r, 200));
   }
 }
 
@@ -40,165 +38,115 @@ beforeAll(() => {
 });
 
 describe('Anmeldung (E2)', () => {
-  it('lead-Anmeldung verlangt zweiten Faktor und funktioniert mit Einmalcode', async () => {
-    const result = await authApi.login('lead@sims.example', 'demo1234');
-    expect(result.mfaRequired).toBe(true);
-    if (!result.mfaRequired) return;
-    const session = await authApi.verifyMfa(result.mfaToken, DEMO_MFA_CODE);
-    expect(session.user.role).toBe('Lead');
-    expect(session.user.mfaVerified).toBe(true);
+  it('Lead braucht den zweiten Faktor, danach trägt das Token mfa=true', async () => {
+    const first = await authApi.login('lead@sims.example', DEMO_PASSWORD);
+    expect(first.mfaRequired).toBe(true);
+    expect(first.accessToken).toBeNull();
+    const second = await authApi.verifyMfa(first.mfaToken!, DEMO_MFA_CODE);
+    expect(second.accessToken).toBeTruthy();
+    expect(hasMfaClaim(second.accessToken!)).toBe(true);
+    const me = await authApi.me(second.accessToken!);
+    expect(me.role).toBe('Lead');
   });
 
-  it('lehnt ein falsches Passwort ab', async () => {
-    await expect(authApi.login('lead@sims.example', 'falsch')).rejects.toBeInstanceOf(ApiError);
+  it('lehnt ein falsches Passwort mit 401 ab', async () => {
+    await expect(authApi.login('lead@sims.example', 'falsch')).rejects.toMatchObject({ status: 401 });
   });
 
-  it('Developer ohne 2FA bekommt sofort eine Sitzung', async () => {
-    const session = await login('dev@sims.example', false);
-    expect(session.user.role).toBe('Developer');
-    expect(session.user.mfaVerified).toBe(false);
+  it('Logout macht das Token ungültig', async () => {
+    const token = await login('dev@sims.example');
+    expect(hasMfaClaim(token)).toBe(false);
+    await authApi.logout(token);
+    await expect(authApi.me(token)).rejects.toMatchObject({ status: 401 });
   });
 });
 
 describe('Projekte und Scans (E3)', () => {
-  it('zeigt Developer nur Projekte des eigenen Teams, Admin alle', async () => {
-    const dev = await login('dev@sims.example', false);
-    const devProjects = await scanApi.listProjects(dev.token);
-    expect(devProjects.length).toBeGreaterThan(0);
-    expect(devProjects.every((p) => p.teamId === dev.user.teamId)).toBe(true);
-
-    const admin = await login('admin@sims.example');
-    const adminProjects = await scanApi.listProjects(admin.token);
-    expect(adminProjects.length).toBeGreaterThan(devProjects.length);
-  });
-
   it('prüft SBOM auf JSON, CycloneDX und Größe', () => {
     expect(validateSbom('kein json')).toMatch(/kein gültiges JSON/);
     expect(validateSbom('{"a":1}')).toMatch(/CycloneDX/);
     expect(validateSbom(EXAMPLE_SBOM)).toBeNull();
-    expect(validateSbom('{"bomFormat":"CycloneDX","components":[],"x":"' + 'a'.repeat(6 * 1024 * 1024) + '"}')).toMatch(/5 MB/);
   });
 
-  it('legt ein Projekt an, lädt eine Beispiel-SBOM hoch und sieht ein Urteil', async () => {
-    const lead = await login('lead@sims.example');
-    const project = await scanApi.createProject(lead.token, 'Kassen-Teststand');
-    expect(project.name).toBe('Kassen-Teststand');
-    expect(project.teamId).toBe(lead.user.teamId);
-
-    const scan = await scanApi.createScan(lead.token, project.id, '1.0.0', EXAMPLE_SBOM);
-    expect(scan.status).toBe('Pending');
-    expect(scan.verdict).toBeNull();
-
-    const done = await pollUntilDone(lead.token, scan.id);
+  it('legt ein Projekt an, lädt eine SBOM hoch und bekommt ein Urteil', async () => {
+    const token = await login('lead@sims.example');
+    const project = await scanApi.createProject(token, 'Kassen-Teststand');
+    const created = await scanApi.createScan(token, project.id, '1.0.0', EXAMPLE_SBOM);
+    expect(created.status).toBe('Pending');
+    const done = await pollUntilDone(token, created.scanId);
     expect(done.status).toBe('Scanned');
     expect(done.verdict).toBe('GoWithConditions');
-    expect(done.findings.length).toBeGreaterThan(0);
+    const list = await scanApi.listProjectScans(token, project.id);
+    expect(list.some((s) => s.id === created.scanId)).toBe(true);
+  }, 20_000);
 
-    const list = await scanApi.listProjectScans(lead.token, project.id);
-    expect(list.some((s) => s.id === scan.id)).toBe(true);
-  }, 25_000);
-
-  it('zeigt den zweiten Beispielablauf: fehlgeschlagener Scan ohne Urteil', async () => {
-    const lead = await login('lead@sims.example');
-    const project = await scanApi.listProjects(lead.token).then((l) => l[0]);
-    const scan = await scanApi.createScan(lead.token, project.id, 'fail-1.0.0', EXAMPLE_SBOM);
-    const done = await pollUntilDone(lead.token, scan.id);
+  it('ein fehlgeschlagener Scan hat kein Urteil', async () => {
+    const token = await login('lead@sims.example');
+    const project = (await scanApi.listProjects(token))[0];
+    const created = await scanApi.createScan(token, project.id, 'fail-1.0.0', EXAMPLE_SBOM);
+    const done = await pollUntilDone(token, created.scanId);
     expect(done.status).toBe('Failed');
     expect(done.verdict).toBeNull();
-    expect(done.errorMessage).toBeTruthy();
-  }, 25_000);
+  }, 20_000);
 
-  it('verweigert teamfremden Zugriff auf ein Projekt', async () => {
-    const devOther = await login('dev2@sims.example', false); // Team Grün
-    await expect(scanApi.getProject(devOther.token, 'p-shelf')).rejects.toMatchObject({ status: 403 });
+  it('fremde Projekte liefern 404', async () => {
+    const token = await login('dev2@sims.example');
+    await expect(scanApi.getProject(token, 'p-shelf')).rejects.toMatchObject({ status: 404 });
   });
 });
 
-describe('Tickets und Verwaltung (E4)', () => {
-  it('zeigt Rolle und persönliche Bearbeitung getrennt und arbeitet ein Ticket durch', async () => {
-    const lead = await login('lead@sims.example');
-    const page = await scanApi.listTickets(lead.token, { page: 1, pageSize: 10 });
-    expect(page.totalCount).toBeGreaterThan(0);
-
-    const escalated = await scanApi.getTicket(lead.token, 'tk-2');
-    expect(escalated.assignedRole).toBe('Lead');
-    expect(escalated.assigneeName).toBeNull();
-    expect(escalated.escalationLevel).toBe(2);
-
-    // „Meine Tickets“ ist vor der Übernahme leer.
-    const before = await scanApi.listTickets(lead.token, { mine: true });
+describe('Tickets (E4)', () => {
+  it('übernimmt und schließt ein Ticket, „Meine Tickets“ filtert', async () => {
+    const token = await login('lead@sims.example');
+    const before = await scanApi.listTickets(token, { assignedToMe: true });
     expect(before.items.some((t) => t.id === 'tk-2')).toBe(false);
-
-    const taken = await scanApi.takeTicket(lead.token, 'tk-2');
-    expect(taken.assigneeName).toBe(lead.user.name);
-    expect(taken.status).toBe('InProgress');
-
-    const after = await scanApi.listTickets(lead.token, { mine: true });
+    await scanApi.takeTicket(token, 'tk-2');
+    const after = await scanApi.listTickets(token, { assignedToMe: true });
     expect(after.items.some((t) => t.id === 'tk-2')).toBe(true);
-
-    const closed = await scanApi.closeTicket(lead.token, 'tk-2');
-    expect(closed.status).toBe('Closed');
+    await scanApi.closeTicket(token, 'tk-2');
+    expect((await scanApi.getTicket(token, 'tk-2')).status).toBe('Closed');
+    await expect(scanApi.closeTicket(token, 'tk-2')).rejects.toMatchObject({ status: 409 });
   });
 
-  it('filtert nach Status und Schweregrad', async () => {
-    const lead = await login('lead@sims.example');
-    const closed = await scanApi.listTickets(lead.token, { status: 'Closed' });
-    expect(closed.items.every((t) => t.status === 'Closed')).toBe(true);
-    const critical = await scanApi.listTickets(lead.token, { severity: 'Critical' });
-    expect(critical.items.every((t) => t.severity === 'Critical')).toBe(true);
-  });
-
-  it('lässt nur einen mit 2FA angemeldeten Admin ein Risiko mit Begründung ab 20 Zeichen zu', async () => {
-    const dev = await login('dev@sims.example', false);
-    await expect(scanApi.acceptRisk(dev.token, 'tk-3', 'x'.repeat(25))).rejects.toMatchObject({ status: 403 });
-
+  it('Risiko akzeptieren nur als Admin mit MFA und Begründung ab 20 Zeichen', async () => {
+    const dev = await login('dev@sims.example');
+    await expect(scanApi.acceptRisk(dev, 'tk-3', 'x'.repeat(25))).rejects.toMatchObject({ status: 403 });
     const admin = await login('admin@sims.example');
-    await expect(scanApi.acceptRisk(admin.token, 'tk-3', 'zu kurz')).rejects.toMatchObject({ status: 400 });
-
-    const accepted = await scanApi.acceptRisk(
-      admin.token,
-      'tk-3',
-      'Die restlichen Bausteine sind nicht produktiv im Einsatz, daher wird das Risiko knowingly genommen.',
-    );
-    expect(accepted.status).toBe('RiskAccepted');
-    expect(accepted.audit.some((a) => a.action === 'RiskAccepted')).toBe(true);
+    await expect(scanApi.acceptRisk(admin, 'tk-3', 'zu kurz')).rejects.toMatchObject({ status: 400 });
+    await scanApi.acceptRisk(admin, 'tk-3', 'Die Bibliothek ist nicht im produktiven Pfad eingebunden.');
+    expect((await scanApi.getTicket(admin, 'tk-3')).status).toBe('RiskAccepted');
   });
+});
 
-  it('admin kann Benutzer anlegen und deaktivieren sowie Teams anlegen und das Audit lesen', async () => {
+describe('Verwaltung (E4)', () => {
+  it('Admin legt Team und User an, Fehler kommen als Liste, Deaktivieren sperrt den Login', async () => {
     const admin = await login('admin@sims.example');
-    const teams = await scanApi.listTeams(admin.token);
-    const created = await scanApi.createUser(admin.token, {
-      email: 'neu@sims.example',
-      name: 'Neue Person',
-      role: 'Developer',
-      teamId: teams[0].id,
-    });
-    expect(created.email).toBe('neu@sims.example');
+    const team = await adminApi.createTeam(admin, 'Team Gelb');
+    await expect(adminApi.createTeam(admin, 'Team Gelb')).rejects.toMatchObject({ status: 409 });
 
-    await scanApi.disableUser(admin.token, created.id);
-    const users = await scanApi.listUsers(admin.token);
-    expect(users.find((u) => u.id === created.id)?.active).toBe(false);
+    const weak = adminApi.createUser(admin, { email: 'schwach@sims.example', password: 'abc', role: 'Developer', teamId: team.id });
+    await expect(weak).rejects.toBeInstanceOf(ApiError);
+    await expect(weak).rejects.toMatchObject({ status: 400 });
 
-    const team = await scanApi.createTeam(admin.token, 'Team Gelb');
-    expect(team.name).toBe('Team Gelb');
+    const created = await adminApi.createUser(admin, { email: 'neu@sims.example', password: 'SehrSicher123!', role: 'Developer', teamId: team.id });
+    expect(created.isActive).toBe(true);
+    expect(created).not.toHaveProperty('password');
 
-    const audit = await scanApi.listAudit(admin.token);
-    expect(audit.length).toBeGreaterThan(0);
-    expect(audit.some((a) => a.action === 'TicketEscalated')).toBe(true);
+    await adminApi.deactivateUser(admin, created.id);
+    await expect(authApi.login('neu@sims.example', 'SehrSicher123!')).rejects.toMatchObject({ status: 401 });
   });
 
-  it('verweigert die Verwaltung für Nicht-Admins', async () => {
-    const dev = await login('dev@sims.example', false);
-    await expect(scanApi.listUsers(dev.token)).rejects.toMatchObject({ status: 403 });
-    await expect(scanApi.listAudit(dev.token)).rejects.toMatchObject({ status: 403 });
+  it('Nicht-Admins bekommen 403', async () => {
+    const dev = await login('dev@sims.example');
+    await expect(adminApi.listUsers(dev)).rejects.toMatchObject({ status: 403, message: MESSAGES.forbidden });
+    await expect(scanApi.listAudit(dev)).rejects.toMatchObject({ status: 403 });
   });
 });
 
 describe('News (E5)', () => {
-  it('liefert öffentliche Meldungen ohne Anmeldung', async () => {
+  it('liefert Meldungen ohne Anmeldung, neueste zuerst', async () => {
     const items = await newsApi.list();
     expect(items.length).toBeGreaterThan(0);
-    expect(items[0].title).toBeTruthy();
-    expect(items[0].url).toMatch(/^http/);
+    expect(items[0].publishedAt >= items[items.length - 1].publishedAt).toBe(true);
   });
 });

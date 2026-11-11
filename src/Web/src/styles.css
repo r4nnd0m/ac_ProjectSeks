@@ -140,3 +140,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .admintabs { display: flex; gap: 8px; margin-bottom: 12px; }
 .qr { background: #fff; padding: 8px; border: 1px solid var(--line); border-radius: 6px; }
 code, .secret { font-family: Consolas, monospace; background: var(--bg-soft); padding: 1px 4px; border-radius: 3px; }
+
+/* Mehrzeiliger reiner Text (Ticketbeschreibung) */
+.pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

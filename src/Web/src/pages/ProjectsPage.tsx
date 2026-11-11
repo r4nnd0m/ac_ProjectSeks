@@ -1,5 +1,5 @@
-// E3: Projekte auflisten und anlegen. Developer und Lead sehen das eigene
-// Team, Admins alle (die echte Rechteprüfung ist Aufgabe des Backends – hier nur Darstellung).
+// E3: Projekte auflisten und anlegen (GET/POST /projects). Developer und Lead
+// sehen das eigene Team, Admins alle – das filtert die Scan-API.
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -57,7 +57,6 @@ export function ProjectsPage() {
           <thead>
             <tr>
               <th>Name</th>
-              <th>Team</th>
               <th>Angelegt am</th>
             </tr>
           </thead>
@@ -67,7 +66,6 @@ export function ProjectsPage() {
                 <td>
                   <Link to={`/projects/${p.id}`}>{p.name}</Link>
                 </td>
-                <td>{p.teamName}</td>
                 <td>{formatDate(p.createdAt)}</td>
               </tr>
             ))}
@@ -79,7 +77,7 @@ export function ProjectsPage() {
         <h2>Neues Projekt anlegen</h2>
         <form onSubmit={onCreate}>
           <Field label="Projektname" hint="Das Projekt gehört automatisch zu deinem Team.">
-            <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={100} />
+            <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={200} />
           </Field>
           {createError ? <ErrorBox error={createError} /> : null}
           <button type="submit" disabled={busy || !name.trim()}>

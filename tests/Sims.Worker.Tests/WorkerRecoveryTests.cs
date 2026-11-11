@@ -80,7 +80,7 @@ public sealed class WorkerRecoveryTests
         Assert.Equal(2, h.ProcessCount);
     }
 
-    private sealed class Harness : IAsyncDisposable, ILogger<global::Worker.Worker>
+    private sealed class Harness : IAsyncDisposable, ILogger<global::Worker.ScanPollingService>
     {
         private readonly ServiceProvider services;
         private readonly Channel<int> disposed = Channel.CreateUnbounded<int>();
@@ -92,7 +92,7 @@ public sealed class WorkerRecoveryTests
         public ConcurrentQueue<string> Errors { get; } = new();
         public int RecoveryCount => Volatile.Read(ref recoveryCount);
         public int ProcessCount => Volatile.Read(ref processCount);
-        public global::Worker.Worker Worker { get; }
+        public global::Worker.ScanPollingService Worker { get; }
 
         public Harness(Func<int, CancellationToken, Task>? recover = null, Func<int, CancellationToken, Task>? process = null)
         {
@@ -102,7 +102,7 @@ public sealed class WorkerRecoveryTests
             collection.AddScoped<IScanRecovery>(s => s.GetRequiredService<Probe>());
             collection.AddScoped<IScanProcessor>(s => s.GetRequiredService<Probe>());
             services = collection.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
-            Worker = new global::Worker.Worker(services.GetRequiredService<IServiceScopeFactory>(), this,
+            Worker = new global::Worker.ScanPollingService(services.GetRequiredService<IServiceScopeFactory>(), this,
                 Options.Create(new WorkerOptions { PollIntervalSeconds = 30 }), Clock);
         }
         public async Task<int> NextDisposedAsync() => await disposed.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(3));
