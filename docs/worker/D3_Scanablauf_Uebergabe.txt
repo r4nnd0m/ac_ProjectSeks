@@ -18,7 +18,8 @@ Components und Findings. Die Folgemigration WorkerTicketAndAuditSchema erstellt
 Tickets und AuditEntries aus Leos Modell. Der Worker nutzt alle sechs Tabellen.
 Auch ConnectionStrings:Redis wird wie bisher beim Worker-Start benötigt.
 
-Aus dem Repository-Root in PowerShell:
+Beim normalen Compose-Start wendet die Scan-API diese Migrationen mit MIGRATIONS_RUN=true
+automatisch an. Für eine separate Einrichtung oder den SQL-Export aus dem Repository-Root:
 1. Lokalen SQL Server mit docker compose up -d sql starten. Die Umgebungsvariable
    ConnectionStrings__Sims aus der lokalen Konfiguration auf die Ziel-Datenbank setzen.
    Für den Start auf dem PC lautet die Serveradresse 127.0.0.1,1433 und der Datenbankname

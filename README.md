@@ -13,7 +13,7 @@ Für ein neues Arbeitspaket im vorhandenen Klon zuerst `git fetch origin` ausfü
 Zum Beispiel startet `git switch --no-track -c patrick/b1-datenmodell origin/main-test`
 einen eigenen Branch für B1. Beim Pull Request für den gemeinsamen Test `main-test` als Ziel auswählen.
 
-Die [Offline-Demo](docs/worker/DEMO_Anleitung.txt) zeigt die Abläufe mit Testdaten.
+Die frühere Offline-Demo unter `examples/Sims.Worker.Demo` ist deaktiviert.
 Der Hintergrunddienst `ScanPollingService` holt Aufträge aus SQL. Der Dienstname in
 Docker bleibt `worker`. Die normalen Dienste verwenden die folgenden Regeln.
 
@@ -44,18 +44,19 @@ Manuelle Tickets erhalten ihre Startfrist in der Scan-API, automatische beim Wor
 
 ### Scan-Datenbank einrichten
 
-1. In PowerShell im Projektordner den lokalen Microsoft SQL Server mit `docker compose up -d sql` starten.
-2. Die Umgebungsvariable `ConnectionStrings__Sims` auf die Ziel-Datenbank setzen.
-   Scan-API und Worker müssen dieselbe Datenbank verwenden.
-3. `.\scripts\scan-db.ps1` ausführen. EF Core legt zuerst die vier Scan-Tabellen aus B1
-   an und ergänzt danach Tickets und deren Änderungshistorie.
+1. Falls noch keine `.env` vorhanden ist, im Projektordner `.env.example` nach `.env` kopieren
+   und die Zugangsdaten für die eigene Testumgebung eintragen.
+2. `docker compose up -d --build` ausführen. Bei `MIGRATIONS_RUN=true` (Compose-Standard)
+   wendet die Scan-API beim Start die ausstehenden EF-Core-Migrationen für Scans, Tickets
+   und Audit an. Bei späteren Starts erkennt EF bereits eingespielte Migrationen.
+3. Im Browser http://localhost:8080 öffnen. Die Worker-Meldungen zeigt `docker compose logs worker`.
+   Zum Beenden der Dienste genügt `docker compose stop`.
 
-Beim ersten lokalen Start `.env.example` als `.env` kopieren und die Zugänge für die
-Testumgebung setzen. Eine vorhandene `.env` kann weiterverwendet werden.
-Für EF auf dem PC ist der SQL-Server unter `127.0.0.1,1433` erreichbar, für Dienste
-im Container unter `sql,1433`. Nach der Migration `docker compose up -d --build`
-und `docker compose ps` ausführen. Die Worker-Meldungen zeigt `docker compose logs worker`.
-Die Oberfläche unter `src/Web` startet separat. Zum Beenden der Dienste genügt `docker compose stop`.
+Für eine getrennte Einrichtung des Scan-Schemas zuerst SQL mit `docker compose up -d sql`
+starten, `ConnectionStrings__Sims` auf die Ziel-Datenbank setzen und `.\scripts\scan-db.ps1`
+ausführen. Vom PC aus lautet die lokale SQL-Adresse `127.0.0.1,1433`, im Container `sql,1433`.
+Bei `MIGRATIONS_RUN=false` übernimmt das Deployment die Datenbankeinrichtung für beide APIs
+einschließlich der Erstbereitstellung des Admin-Kontos.
 
 Docker lädt lokal `docker-compose.override.yml` automatisch. Damit sind SQL und Redis
 vom eigenen PC auf Loopback erreichbar. Für die Bereitstellung nur `-f docker-compose.yml`

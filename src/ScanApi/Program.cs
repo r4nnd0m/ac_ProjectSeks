@@ -16,7 +16,7 @@ namespace ScanApi;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
 
@@ -116,6 +116,13 @@ public class Program
 
         var app = builder.Build();
 
+        if (app.Configuration.GetValue<bool>("Migrations:Run"))
+        {
+            await using var scope = app.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<SimsDbContext>();
+            await db.Database.MigrateAsync();
+        }
+
         if (app.Environment.IsDevelopment())
         {
             app.MapScalarApiReference();
@@ -129,7 +136,7 @@ public class Program
         app.UseAuthorization();
         app.MapControllers();
 
-        app.Run();
+        await app.RunAsync();
     }
 }
 
