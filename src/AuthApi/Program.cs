@@ -115,6 +115,9 @@ public class Program
                 }));
         });
 
+        builder.Services.AddScoped<UserService>();
+        builder.Services.AddScoped<TeamService>();
+
         var app = builder.Build();
 
         if (app.Configuration["Migrations:Run"] == "true")

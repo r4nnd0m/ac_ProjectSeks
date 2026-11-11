@@ -4,6 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Frontend (Node/React): riesige Ordner nicht in Visual Studio laden -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);node_modules/**;dist/**</DefaultItemExcludes>
   </PropertyGroup>
 
 </Project>
