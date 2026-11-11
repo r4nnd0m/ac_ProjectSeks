@@ -146,9 +146,11 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    security_opt:          # <-- Hier von Security_opt zu security_opt geändert
+    # Change Security_opt zu security_opt 
+    security_opt:          
       - no-new-privileges:true
-    cap_drop:             # <-- Hier von Cap_drop zu cap_drop geändert
+    # Change Cap_drop zu cap_drop
+    cap_drop:             
       - ALL
     restart: unless-stopped
 
