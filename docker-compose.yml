@@ -158,13 +158,20 @@ services:
     build:
       context: ./src/Web
       dockerfile: Dockerfile
-    volumes:
-      - ./src/Web/public/config.js:/usr/share/nginx/html/config.js
+    # config.js ist im Image enthalten (relative Pfade /api/...); nginx leitet an die APIs weiter.
+    # Nur frontend-net: die Oberfläche braucht keinen Zugriff auf SQL und Redis.
     networks:
       - frontend-net
-      - backend-net
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      - auth-api
+      - scan-api
+      - news-api
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     restart: unless-stopped
 
 volumes:
