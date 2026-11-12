@@ -132,17 +132,17 @@ export function TicketDetailPage() {
         <h2>Aktionen</h2>
         {finished ? <p className="hint">Das Ticket ist abgeschlossen.</p> : null}
         {!finished ? (
-          <>
+          <div style={{ display: 'flex', gap: 'var(--spacing-sm)', flexWrap: 'wrap', alignItems: 'center' }}>
             <button type="button" disabled={busy} onClick={() => run(() => scanApi.takeTicket(token, t.id))}>
               Übernehmen
-            </button>{' '}
+            </button>
             <button type="button" className="secondary" disabled={busy} onClick={() => run(() => scanApi.closeTicket(token, t.id))}>
               Schließen
-            </button>{' '}
+            </button>
             <button type="button" className="secondary" disabled={busy} onClick={() => setEditing((v) => !v)}>
               {editing ? 'Bearbeiten abbrechen' : 'Bearbeiten'}
             </button>
-          </>
+          </div>
         ) : null}
         {editing && !finished ? (
           <form onSubmit={onSave}>
@@ -160,7 +160,11 @@ export function TicketDetailPage() {
                 <option value="Low">Niedrig</option>
               </select>
             </Field>
-            <button type="submit" disabled={busy || !title.trim() || !description.trim()}>Änderungen speichern</button>
+            <div style={{ marginTop: 'var(--spacing-md)' }}>
+              <button type="submit" disabled={busy || !title.trim() || !description.trim()}>
+                Änderungen speichern
+              </button>
+            </div>
           </form>
         ) : null}
       </div>

@@ -51,10 +51,12 @@ export function MfaLoginPage() {
             />
           </Field>
           {error ? <div className="errorbox" role="alert">{error}</div> : null}
-          <button type="submit" disabled={busy}>{busy ? 'Prüfung läuft…' : 'Bestätigen'}</button>{' '}
-          <button type="button" className="secondary" onClick={() => navigate('/login')}>
-            Abbrechen
-          </button>
+          <div style={{ display: 'flex', gap: 'var(--spacing-sm)', marginTop: 'var(--spacing-md)' }}>
+            <button type="submit" disabled={busy}>{busy ? 'Prüfung läuft…' : 'Bestätigen'}</button>
+            <button type="button" className="secondary" onClick={() => navigate('/login')}>
+              Abbrechen
+            </button>
+          </div>
         </form>
       </div>
     </div>

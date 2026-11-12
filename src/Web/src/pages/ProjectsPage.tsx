@@ -53,24 +53,26 @@ export function ProjectsPage() {
         <EmptyState text="Noch keine Projekte in deinem Sichtbereich. Lege rechts ein erstes an." />
       ) : null}
       {projects && projects.length > 0 ? (
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Angelegt am</th>
-            </tr>
-          </thead>
-          <tbody>
-            {projects.map((p) => (
-              <tr key={p.id}>
-                <td>
-                  <Link to={`/projects/${p.id}`}>{p.name}</Link>
-                </td>
-                <td>{formatDate(p.createdAt)}</td>
+        <div className="card">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Angelegt am</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {projects.map((p) => (
+                <tr key={p.id}>
+                  <td>
+                    <Link to={`/projects/${p.id}`}>{p.name}</Link>
+                  </td>
+                  <td>{formatDate(p.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : null}
 
       <div className="card">
@@ -80,9 +82,11 @@ export function ProjectsPage() {
             <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={200} />
           </Field>
           {createError ? <ErrorBox error={createError} /> : null}
-          <button type="submit" disabled={busy || !name.trim()}>
-            {busy ? 'Wird angelegt…' : 'Projekt anlegen'}
-          </button>
+          <div style={{ marginTop: 'var(--spacing-md)' }}>
+            <button type="submit" disabled={busy || !name.trim()}>
+              {busy ? 'Wird angelegt…' : 'Projekt anlegen'}
+            </button>
+          </div>
         </form>
       </div>
     </div>

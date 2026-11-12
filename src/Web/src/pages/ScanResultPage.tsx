@@ -113,7 +113,7 @@ export function ScanResultPage() {
           {timedOut ? (
             <div className="errorbox" role="alert">
               Die Abfrage wurde nach fünf Minuten beendet. Der Scan ist immer noch nicht fertig.
-              Bitte später über „Neu prüfen“ erneut nachsehen.
+              Bitte später über "Neu prüfen" erneut nachsehen.
             </div>
           ) : null}
           {(scan.status === 'Pending' || scan.status === 'Scanning') && !timedOut ? null : (
@@ -143,33 +143,35 @@ export function ScanResultPage() {
               }
             />
           ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Schweregrad</th>
-                  <th>Komponente</th>
-                  <th>Version</th>
-                  <th>CVE / Schwachstellen-ID</th>
-                  <th>KEV</th>
-                  <th>EPSS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {findings.map((f) => (
-                  <tr key={f.id}>
-                    <td><SeverityBadge severity={f.severity} /></td>
-                    <td>{f.component}</td>
-                    <td>{f.componentVersion}</td>
-                    <td>
-                      {f.cve ? <code>{f.cve}</code> : null}{' '}
-                      {f.cve ? <span className="hint">/ {f.vulnId}</span> : <code>{f.vulnId}</code>}
-                    </td>
-                    <td>{f.isKev ? <span className="badge sev-Critical">KEV</span> : <span className="hint">nein</span>}</td>
-                    <td>{epssPercent(f.epss)}</td>
+            <div className="card">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Schweregrad</th>
+                    <th>Komponente</th>
+                    <th>Version</th>
+                    <th>CVE / Schwachstellen-ID</th>
+                    <th>KEV</th>
+                    <th>EPSS</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {findings.map((f) => (
+                    <tr key={f.id}>
+                      <td><SeverityBadge severity={f.severity} /></td>
+                      <td>{f.component}</td>
+                      <td>{f.componentVersion}</td>
+                      <td>
+                        {f.cve ? <code>{f.cve}</code> : null}{' '}
+                        {f.cve ? <span className="hint">/ {f.vulnId}</span> : <code>{f.vulnId}</code>}
+                      </td>
+                      <td>{f.isKev ? <span className="badge sev-Critical">KEV</span> : <span className="hint">nein</span>}</td>
+                      <td>{epssPercent(f.epss)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </>
       ) : null}

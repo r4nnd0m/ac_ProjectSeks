@@ -1,5 +1,4 @@
-// Wiederverwendbare, schlichte Bausteine: Lade-, Leer-, Fehler- und
-// Rechteanzeigen sowie Badge und Urteils-Raute.
+// Wiederverwendbare Bausteine mit modernem Design.
 
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
@@ -98,5 +97,14 @@ export function DemoBadge() {
     <Link to="/hinweise" className="demo-badge" title="Erklärt Demo-Modus und offene Anschlüsse">
       Demo-Modus: erfundene Testdaten
     </Link>
+  );
+}
+
+/** Sekundärer Button für Links innerhalb von Karten */
+export function LinkButton({ onClick, children }: { onClick?: () => void; children: ReactNode }) {
+  return (
+    <button type="button" className="link-btn" onClick={onClick}>
+      {children}
+    </button>
   );
 }

@@ -99,34 +99,36 @@ export function TicketsPage() {
       ) : null}
       {result && result.items.length > 0 ? (
         <>
-          <table>
-            <thead>
-              <tr>
-                <th>Titel</th>
-                <th>Schweregrad</th>
-                <th>Status</th>
-                <th>Stufe</th>
-                <th>Zuständige Rolle</th>
-                <th>Frist</th>
-                <th>Persönlicher Bearbeiter</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.items.map((t) => (
-                <tr key={t.id}>
-                  <td>
-                    <Link to={`/tickets/${t.id}`}>{t.title}</Link>
-                  </td>
-                  <td><SeverityBadge severity={t.severity} /></td>
-                  <td><StatusBadge status={t.status} /></td>
-                  <td>{t.escalationLevel}</td>
-                  <td>{t.assignedRole ?? <span className="hint">keine</span>}</td>
-                  <td>{dueLabel(t.dueAt)}</td>
-                  <td>{t.assigneeName ?? <span className="hint">niemand übernommen</span>}</td>
+          <div className="card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Titel</th>
+                  <th>Schweregrad</th>
+                  <th>Status</th>
+                  <th>Stufe</th>
+                  <th>Zuständige Rolle</th>
+                  <th>Frist</th>
+                  <th>Persönlicher Bearbeiter</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {result.items.map((t) => (
+                  <tr key={t.id}>
+                    <td>
+                      <Link to={`/tickets/${t.id}`}>{t.title}</Link>
+                    </td>
+                    <td><SeverityBadge severity={t.severity} /></td>
+                    <td><StatusBadge status={t.status} /></td>
+                    <td>{t.escalationLevel}</td>
+                    <td>{t.assignedRole ?? <span className="hint">keine</span>}</td>
+                    <td>{dueLabel(t.dueAt)}</td>
+                    <td>{t.assigneeName ?? <span className="hint">niemand übernommen</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <div className="pager">
             <button className="secondary" type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
               Zurück
@@ -199,7 +201,7 @@ function NewTicketForm({ onCreated }: { onCreated: () => void }) {
   return (
     <div className="card">
       <h2>
-        <button type="button" className="linkbtn" onClick={() => setOpen((o) => !o)}>
+        <button type="button" className="link-btn" onClick={() => setOpen((o) => !o)}>
           {open ? 'Formular ausblenden' : 'Neuen Vorfall erfassen'}
         </button>
       </h2>
@@ -234,9 +236,11 @@ function NewTicketForm({ onCreated }: { onCreated: () => void }) {
             <input value={system} onChange={(e) => setSystem(e.target.value)} maxLength={200} />
           </Field>
           {error ? <ErrorBox error={error} /> : null}
-          <button type="submit" disabled={busy || !title.trim() || !description.trim()}>
-            {busy ? 'Wird angelegt…' : 'Vorfall erfassen'}
-          </button>
+          <div style={{ marginTop: 'var(--spacing-md)' }}>
+            <button type="submit" disabled={busy || !title.trim() || !description.trim()}>
+              {busy ? 'Wird angelegt…' : 'Vorfall erfassen'}
+            </button>
+          </div>
         </form>
       ) : null}
     </div>

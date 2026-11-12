@@ -37,7 +37,7 @@ export function NewsPage() {
             const link = safeHttpUrl(n.link);
             return (
               <article className="newsitem" key={`${n.link}-${index}`}>
-                <h2 style={{ margin: '4px 0' }}>{n.title}</h2>
+                <h2 style={{ margin: 'var(--spacing-sm) 0' }}>{n.title}</h2>
                 <p className="meta">
                   Quelle: {n.source} · {formatDate(n.publishedAt)}
                   {link ? (

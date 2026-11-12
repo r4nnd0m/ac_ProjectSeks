@@ -6,6 +6,19 @@
     <title>SIMS – Sul Sul, Exploit!</title>
     <!-- Basis-URLs der drei APIs; wird vor dem Bundle geladen (E1). -->
     <script src="/config.js"></script>
+    <!-- Theme-Initialisierung: verhindert das Aufblitzen beim Laden -->
+    <script>
+      (function() {
+        var theme = localStorage.getItem('sims-theme') || 'system';
+        var isDark = false;
+        if (theme === 'dark') {
+          isDark = true;
+        } else if (theme === 'system') {
+          isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        }
+        document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

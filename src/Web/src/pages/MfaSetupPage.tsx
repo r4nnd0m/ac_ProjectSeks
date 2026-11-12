@@ -47,8 +47,10 @@ export function MfaSetupPage() {
     return (
       <div>
         <h1>Zwei-Faktor-Anmeldung</h1>
-        <div className="noticebox" role="status">
-          Für dein Konto ist die Zwei-Faktor-Anmeldung bereits aktiv.
+        <div className="card">
+          <div className="noticebox" role="status">
+            Für dein Konto ist die Zwei-Faktor-Anmeldung bereits aktiv.
+          </div>
         </div>
       </div>
     );
@@ -58,8 +60,10 @@ export function MfaSetupPage() {
     return (
       <div>
         <h1>Zwei-Faktor-Anmeldung eingerichtet</h1>
-        <div className="noticebox" role="status">
-          Fertig! Bei der nächsten Anmeldung verlangt SIMS zusätzlich zum Passwort einen Einmalcode.
+        <div className="card">
+          <div className="noticebox" role="status">
+            Fertig! Bei der nächsten Anmeldung verlangt SIMS zusätzlich zum Passwort einen Einmalcode.
+          </div>
         </div>
       </div>
     );
@@ -123,9 +127,11 @@ export function MfaSetupPage() {
               />
             </Field>
             {confirmError ? <ErrorBox error={confirmError} /> : null}
-            <button type="submit" disabled={confirmBusy}>
-              {confirmBusy ? 'Prüfung läuft…' : 'Zwei-Faktor aktivieren'}
-            </button>
+            <div style={{ marginTop: 'var(--spacing-md)' }}>
+              <button type="submit" disabled={confirmBusy}>
+                {confirmBusy ? 'Prüfung läuft…' : 'Zwei-Faktor aktivieren'}
+              </button>
+            </div>
           </form>
         </div>
       ) : null}

@@ -1,9 +1,10 @@
-// Gemeinsamer Seitenrahmen mit schlichter Navigation (E1).
+// Gemeinsamer Seitenrahmen mit modernem Layout (Atlassian-Style).
 
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { simsConfig, USE_MOCKS } from '../config';
 import { DemoBadge } from './ui';
+import { ThemeToggle } from './ThemeToggle';
 
 export function Layout() {
   const { user, logout } = useAuth();
@@ -16,23 +17,23 @@ export function Layout() {
       <header className="topbar">
         <div className="brand">
           <NavLink to="/projects" className="brand-title">
-            SIMS – Sul Sul, Exploit!
+            <span>🔒</span> SIMS
           </NavLink>
-          <span className="brand-sub">Prüfung von Bibliotheken vor der Softwarefreigabe</span>
+          <span className="brand-sub">Security Incident Management System</span>
         </div>
         <div className="session">
           {USE_MOCKS ? <DemoBadge /> : null}
           {user ? (
             <span className="who">
               {user.email} · {user.role}
-              {user.mfaVerified ? ' · 2FA bestätigt' : ''}
+              {user.mfaVerified ? ' · 2FA' : ''}
             </span>
           ) : (
             <span className="who">Nicht angemeldet</span>
           )}
           {user ? (
             <button
-              className="linkbtn"
+              className="link-btn"
               onClick={() => {
                 void logout();
                 navigate('/login');
@@ -43,6 +44,7 @@ export function Layout() {
           ) : (
             <NavLink to="/login">Anmelden</NavLink>
           )}
+          <ThemeToggle />
         </div>
       </header>
 
@@ -53,7 +55,7 @@ export function Layout() {
           <NavLink to="/admin/users" className={link}>Verwaltung</NavLink>
         ) : null}
         <NavLink to="/news" className={link}>Öffentliche Meldungen</NavLink>
-        {user ? <NavLink to="/mfa-setup" className={link}>Zwei-Faktor</NavLink> : null}
+        {user ? <NavLink to="/mfa-setup" className={link}>2FA</NavLink> : null}
         <NavLink to="/hinweise" className={link}>Hinweise</NavLink>
       </nav>
 
@@ -64,8 +66,8 @@ export function Layout() {
       <footer className="footer">
         {USE_MOCKS ? (
           <p>
-            <strong>Demo-Modus aktiv</strong> (VITE_USE_MOCKS): alle Daten sind erfunden. Echte Scanurteile,
-            Ticketregeln und Eskalationen liefert das Backend.
+            <strong>Demo-Modus</strong> (VITE_USE_MOCKS): alle Daten sind erfunden. 
+            Echte Scanurteile, Ticketregeln und Eskalationen liefert das Backend.
           </p>
         ) : (
           <p>

@@ -114,37 +114,39 @@ export function ProjectDetailPage() {
       {!scans ? <Spinner label="Scans werden geladen…" /> : null}
       {scans && scans.length === 0 ? <EmptyState text="Für dieses Projekt wurde noch nichts gescannt." /> : null}
       {scans && scans.length > 0 ? (
-        <table>
-          <thead>
-            <tr>
-              <th>Version</th>
-              <th>Status</th>
-              <th>Urteil</th>
-              <th>Erstellt</th>
-            </tr>
-          </thead>
-          <tbody>
-            {scans.map((s) => (
-              <tr key={s.id}>
-                <td>
-                  <Link to={`/scans/${s.id}`}>{s.version}</Link>
-                </td>
-                <td><StatusBadge status={s.status} /></td>
-                <td>{s.verdict ? verdictLabels[s.verdict] : <span className="hint">–</span>}</td>
-                <td>{formatDateTime(s.createdAt)}</td>
+        <div className="card">
+          <table>
+            <thead>
+              <tr>
+                <th>Version</th>
+                <th>Status</th>
+                <th>Urteil</th>
+                <th>Erstellt</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {scans.map((s) => (
+                <tr key={s.id}>
+                  <td>
+                    <Link to={`/scans/${s.id}`}>{s.version}</Link>
+                  </td>
+                  <td><StatusBadge status={s.status} /></td>
+                  <td>{s.verdict ? verdictLabels[s.verdict] : <span className="hint">–</span>}</td>
+                  <td>{formatDateTime(s.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : null}
 
       <div className="card">
         <h2>SBOM hochladen und Scan starten</h2>
         <p className="hint">
-          CycloneDX-JSON (Format 1.5), maximal 5 MB. Das JSON wird unverändert an{' '}
+          CycloneDX-JSON (Format 1.5), maximal 5 MB. Das JSON wird unverändert an
           <code>POST /projects/{'{id}'}/scans?version=…</code> gesendet.
           {' '}
-          <button type="button" className="linkbtn" onClick={() => { setSbomText(EXAMPLE_SBOM); setSbomFileName('beispiel-sbom.json'); setUploadError(null); }}>
+          <button type="button" className="link-btn" onClick={() => { setSbomText(EXAMPLE_SBOM); setSbomFileName('beispiel-sbom.json'); setUploadError(null); }}>
             Beispiel-SBOM einfügen
           </button>
         </p>
@@ -165,10 +167,12 @@ export function ProjectDetailPage() {
           </Field>
           {sbomFileName ? <p className="hint">Geladene Datei: {sbomFileName}</p> : null}
           {uploadError ? <div className="errorbox" role="alert">{uploadError}</div> : null}
-          <button type="submit" disabled={uploading || !sbomText.trim()}>
-            {uploading ? 'Upload läuft…' : 'Scan starten'}
-          </button>{' '}
-          <button type="button" className="secondary" onClick={reload}>Aktualisieren</button>
+          <div style={{ display: 'flex', gap: 'var(--spacing-sm)', marginTop: 'var(--spacing-md)' }}>
+            <button type="submit" disabled={uploading || !sbomText.trim()}>
+              {uploading ? 'Upload läuft…' : 'Scan starten'}
+            </button>
+            <button type="button" className="secondary" onClick={reload}>Aktualisieren</button>
+          </div>
         </form>
       </div>
     </div>

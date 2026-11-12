@@ -58,7 +58,11 @@ export function LoginPage() {
             />
           </Field>
           {error ? <div className="errorbox" role="alert">{error}</div> : null}
-          <button type="submit" disabled={busy}>{busy ? 'Anmeldung läuft…' : 'Anmelden'}</button>
+          <div style={{ marginTop: 'var(--spacing-md)' }}>
+            <button type="submit" disabled={busy}>
+              {busy ? 'Anmeldung läuft…' : 'Anmelden'}
+            </button>
+          </div>
         </form>
         {USE_MOCKS ? (
           <p className="hint">

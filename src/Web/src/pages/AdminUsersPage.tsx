@@ -87,38 +87,40 @@ export function AdminUsersPage() {
       {!users && !error ? <Spinner label="Benutzer werden geladen…" /> : null}
       {users && users.length === 0 ? <EmptyState text="Keine Benutzer vorhanden." /> : null}
       {users && users.length > 0 ? (
-        <table>
-          <thead>
-            <tr>
-              <th>E-Mail</th>
-              <th>Rolle</th>
-              <th>Team</th>
-              <th>2FA</th>
-              <th>Status</th>
-              <th>Aktion</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((u) => (
-              <tr key={u.id}>
-                <td>{u.email}</td>
-                <td>{u.role}</td>
-                <td>{teamName(u.teamId)}</td>
-                <td>{u.mfaEnabled ? 'ja' : 'nein'}</td>
-                <td>{u.isActive ? 'aktiv' : 'deaktiviert'}</td>
-                <td>
-                  {u.isActive && u.id !== me?.id ? (
-                    <button type="button" className="danger" onClick={() => onDeactivate(u)}>
-                      Deaktivieren
-                    </button>
-                  ) : (
-                    <span className="hint">–</span>
-                  )}
-                </td>
+        <div className="card">
+          <table>
+            <thead>
+              <tr>
+                <th>E-Mail</th>
+                <th>Rolle</th>
+                <th>Team</th>
+                <th>2FA</th>
+                <th>Status</th>
+                <th>Aktion</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.id}>
+                  <td>{u.email}</td>
+                  <td>{u.role}</td>
+                  <td>{teamName(u.teamId)}</td>
+                  <td>{u.mfaEnabled ? 'ja' : 'nein'}</td>
+                  <td>{u.isActive ? 'aktiv' : 'deaktiviert'}</td>
+                  <td>
+                    {u.isActive && u.id !== me?.id ? (
+                      <button type="button" className="danger" onClick={() => onDeactivate(u)}>
+                        Deaktivieren
+                      </button>
+                    ) : (
+                      <span className="hint">–</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : null}
 
       <div className="card">
@@ -151,9 +153,11 @@ export function AdminUsersPage() {
               ))}
             </select>
           </Field>
-          <button type="submit" disabled={busy || !email.trim() || password.length < MIN_PASSWORD || !teamId}>
-            {busy ? 'Wird angelegt…' : 'Benutzer anlegen'}
-          </button>
+          <div style={{ marginTop: 'var(--spacing-md)' }}>
+            <button type="submit" disabled={busy || !email.trim() || password.length < MIN_PASSWORD || !teamId}>
+              {busy ? 'Wird angelegt…' : 'Benutzer anlegen'}
+            </button>
+          </div>
         </form>
       </div>
     </div>

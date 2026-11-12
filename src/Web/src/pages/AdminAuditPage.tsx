@@ -37,28 +37,30 @@ export function AdminAuditPage() {
       {result && result.items.length === 0 ? <EmptyState text="Noch keine Nachweise vorhanden." /> : null}
       {result && result.items.length > 0 ? (
         <>
-          <table>
-            <thead>
-              <tr>
-                <th>Zeitpunkt</th>
-                <th>Wer</th>
-                <th>Aktion</th>
-                <th>Ticket</th>
-                <th>Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.items.map((a) => (
-                <tr key={a.id}>
-                  <td>{formatDateTime(a.timestamp)}</td>
-                  <td>{a.userName}</td>
-                  <td><code>{a.action}</code></td>
-                  <td>{a.ticketId ? <Link to={`/tickets/${a.ticketId}`}>Ticket öffnen</Link> : <span className="hint">–</span>}</td>
-                  <td>{a.details ?? ''}</td>
+          <div className="card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Zeitpunkt</th>
+                  <th>Wer</th>
+                  <th>Aktion</th>
+                  <th>Ticket</th>
+                  <th>Details</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {result.items.map((a) => (
+                  <tr key={a.id}>
+                    <td>{formatDateTime(a.timestamp)}</td>
+                    <td>{a.userName}</td>
+                    <td><code>{a.action}</code></td>
+                    <td>{a.ticketId ? <Link to={`/tickets/${a.ticketId}`}>Ticket öffnen</Link> : <span className="hint">–</span>}</td>
+                    <td>{a.details ?? ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <div className="pager">
             <button className="secondary" type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
               Zurück
