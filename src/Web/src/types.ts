@@ -87,6 +87,7 @@ export interface ScanCreatedDto {
 /** GET /projects/{id}/scans */
 export interface ScanSummaryDto {
   id: string;
+  projectId: string;
   version: string;
   status: ScanStatus;
   verdict: Verdict | null;

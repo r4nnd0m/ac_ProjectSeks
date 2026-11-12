@@ -7,7 +7,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { scanApi } from '../api/scanApi';
 import { describeError } from '../api/http';
-import { EmptyState, ErrorBox, SeverityBadge, Spinner, StatusBadge, VerdictDisplay } from '../components/ui';
+import { EmptyState, ErrorBox, SeverityBadge, Spinner, StatusBadge, VerdictDisplay, useToast } from '../components/ui';
 import { epssPercent, formatDateTime, severityOrder } from '../utils';
 import { USE_MOCKS } from '../config';
 import type { ScanDetailDto } from '../types';
@@ -18,6 +18,7 @@ const POLL_TIMEOUT_MS = 5 * 60_000;
 export function ScanResultPage() {
   const { id } = useParams<{ id: string }>();
   const { token } = useAuth();
+  const { addToast } = useToast();
 
   const [scan, setScan] = useState<ScanDetailDto | null>(null);
   const [error, setError] = useState<unknown>(null);
@@ -47,11 +48,13 @@ export function ScanResultPage() {
         setError(null);
         if (fresh.status === 'Scanned' || fresh.status === 'Failed') {
           stop();
+          addToast('Scan abgeschlossen', 'success');
           return;
         }
       } catch (err) {
         if (stopped) return;
         setError(err);
+        addToast('Fehler beim Abrufen des Scan-Status', 'error');
       }
       if (Date.now() + POLL_INTERVAL_MS > deadline) {
         if (!stopped) setTimedOut(true);
@@ -125,6 +128,7 @@ export function ScanResultPage() {
                   setTimedOut(false);
                   if (token && id) {
                     scanApi.getScan(token, id).then(setScan).catch(setError);
+                    addToast('Scan neu geladen', 'info');
                   }
                 }}
               >
@@ -157,7 +161,7 @@ export function ScanResultPage() {
                 </thead>
                 <tbody>
                   {findings.map((f) => (
-                    <tr key={f.id}>
+                    <tr key={f.id} className={`sev-${f.severity}`}>
                       <td><SeverityBadge severity={f.severity} /></td>
                       <td>{f.component}</td>
                       <td>{f.componentVersion}</td>

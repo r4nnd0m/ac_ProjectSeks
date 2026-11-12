@@ -45,9 +45,11 @@ export function MfaSetupPage() {
 
   if (loadError instanceof ApiError && loadError.kind === 'conflict') {
     return (
-      <div>
-        <h1>Zwei-Faktor-Anmeldung</h1>
-        <div className="card">
+      <div className="login-page">
+        <div className="login-card card">
+          <h1 className="brand-title">
+            <span>🔒</span> SIMS
+          </h1>
           <div className="noticebox" role="status">
             Für dein Konto ist die Zwei-Faktor-Anmeldung bereits aktiv.
           </div>
@@ -58,9 +60,11 @@ export function MfaSetupPage() {
 
   if (done) {
     return (
-      <div>
-        <h1>Zwei-Faktor-Anmeldung eingerichtet</h1>
-        <div className="card">
+      <div className="login-page">
+        <div className="login-card card">
+          <h1 className="brand-title">
+            <span>🔒</span> SIMS
+          </h1>
           <div className="noticebox" role="status">
             Fertig! Bei der nächsten Anmeldung verlangt SIMS zusätzlich zum Passwort einen Einmalcode.
           </div>
@@ -86,55 +90,60 @@ export function MfaSetupPage() {
   }
 
   return (
-    <div>
-      <h1>Zwei-Faktor-Anmeldung einrichten</h1>
-      <p className="hint">
-        1. QR-Code mit einer Authenticator-App scannen (oder das Secret abtippen).{' '}
-        2. Anschließend einen angezeigten Code zur Bestätigung eingeben.
-      </p>
-      {loadError ? <ErrorBox error={loadError} /> : null}
-      {!setup && !loadError ? <Spinner label="Vorbereitungen laufen…" /> : null}
-      {setup ? (
-        <div className="card">
-          <h2>Schritt 1: Gerät verbinden</h2>
-          {qrDataUrl ? (
-            <img className="qr" src={qrDataUrl} alt="QR-Code zum Einrichten der Zwei-Faktor-Anmeldung" width={220} height={220} />
-          ) : (
-            <p className="hint">QR-Code wird gezeichnet…</p>
-          )}
-          <p>
-            Secret zum manuellen Eintragen: <span className="secret">{setup.secret}</span>
-          </p>
-          <p className="hint">
-            Anmeldekette für Apps, die den QR-Code nicht lesen können: <span className="secret">{setup.otpauthUri}</span>
-          </p>
-        </div>
-      ) : null}
-      {setup ? (
-        <div className="card">
-          <h2>Schritt 2: Bestätigen</h2>
-          {USE_MOCKS ? <p className="hint">Demo-Modus: als Bestätigungscode genügt <code>{DEMO_MFA_CODE}</code>.</p> : null}
-          <form onSubmit={onConfirm}>
-            <Field label="Code aus der App">
-              <input
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                inputMode="numeric"
-                pattern="[0-9]{6}"
-                maxLength={6}
-                autoComplete="one-time-code"
-                required
-              />
-            </Field>
-            {confirmError ? <ErrorBox error={confirmError} /> : null}
-            <div style={{ marginTop: 'var(--spacing-md)' }}>
-              <button type="submit" disabled={confirmBusy}>
-                {confirmBusy ? 'Prüfung läuft…' : 'Zwei-Faktor aktivieren'}
-              </button>
+    <div className="login-page">
+      <div className="login-card card">
+        <h1 className="brand-title">
+          <span>🔒</span> SIMS
+        </h1>
+        <p className="brand-sub">Security Incident Management System</p>
+        <p className="hint">
+          1. QR-Code mit einer Authenticator-App scannen (oder das Secret abtippen).{' '}
+          2. Anschließend einen angezeigten Code zur Bestätigung eingeben.
+        </p>
+        {loadError ? <ErrorBox error={loadError} /> : null}
+        {!setup && !loadError ? <Spinner label="Vorbereitungen laufen…" /> : null}
+        {setup ? (
+          <>
+            <div>
+              <h2>Schritt 1: Gerät verbinden</h2>
+              {qrDataUrl ? (
+                <img className="qr" src={qrDataUrl} alt="QR-Code zum Einrichten der Zwei-Faktor-Anmeldung" width={220} height={220} />
+              ) : (
+                <p className="hint">QR-Code wird gezeichnet…</p>
+              )}
+              <p>
+                Secret zum manuellen Eintragen: <span className="secret">{setup.secret}</span>
+              </p>
+              <p className="hint">
+                Anmeldekette für Apps, die den QR-Code nicht lesen können: <span className="secret">{setup.otpauthUri}</span>
+              </p>
             </div>
-          </form>
-        </div>
-      ) : null}
+            <div>
+              <h2>Schritt 2: Bestätigen</h2>
+              {USE_MOCKS ? <p className="hint">Demo-Modus: als Bestätigungscode genügt <code>{DEMO_MFA_CODE}</code>.</p> : null}
+              <form onSubmit={onConfirm}>
+                <Field label="Code aus der App">
+                  <input
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    inputMode="numeric"
+                    pattern="[0-9]{6}"
+                    maxLength={6}
+                    autoComplete="one-time-code"
+                    required
+                  />
+                </Field>
+                {confirmError ? <ErrorBox error={confirmError} /> : null}
+                <div style={{ marginTop: 'var(--spacing-md)' }}>
+                  <button type="submit" disabled={confirmBusy}>
+                    {confirmBusy ? 'Prüfung läuft…' : 'Zwei-Faktor aktivieren'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { simsConfig, USE_MOCKS } from '../config';
-import { DemoBadge } from './ui';
+import { DemoBadge, Breadcrumbs } from './ui';
 import { ThemeToggle } from './ThemeToggle';
 
 export function Layout() {
@@ -16,7 +16,7 @@ export function Layout() {
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <NavLink to="/projects" className="brand-title">
+          <NavLink to="/dashboard" className="brand-title">
             <span>🔒</span> SIMS
           </NavLink>
           <span className="brand-sub">Security Incident Management System</span>
@@ -49,6 +49,7 @@ export function Layout() {
       </header>
 
       <nav className="mainnav" aria-label="Hauptnavigation">
+        <NavLink to="/dashboard" className={link}>Dashboard</NavLink>
         <NavLink to="/projects" className={link}>Projekte</NavLink>
         <NavLink to="/tickets" className={link}>Tickets</NavLink>
         {user?.role === 'Admin' ? (

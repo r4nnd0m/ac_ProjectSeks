@@ -2,32 +2,51 @@
 // sehen das eigene Team, Admins alle – das filtert die Scan-API.
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { scanApi } from '../api/scanApi';
-import { EmptyState, ErrorBox, Field, Spinner } from '../components/ui';
+import { Breadcrumbs, EmptyState, ErrorBox, Field, Spinner, useToast, getSortIcon, sortData } from '../components/ui';
 import { formatDate } from '../utils';
 import type { ProjectDto } from '../types';
 
 export function ProjectsPage() {
   const { token } = useAuth();
-  const navigate = useNavigate();
-  const [projects, setProjects] = useState<ProjectDto[] | null>(null);
+  const { addToast } = useToast();
+  const location = useLocation();
+
+  const [projects, setProjects] = useState<ProjectDto[]>([]);
+  const [allProjects, setAllProjects] = useState<ProjectDto[]>([]);
   const [error, setError] = useState<unknown>(null);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [createError, setCreateError] = useState<unknown>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: keyof ProjectDto; direction: 'asc' | 'desc' } | null>(null);
 
   const reload = useCallback(() => {
     if (!token) return;
     setError(null);
     scanApi
       .listProjects(token)
-      .then(setProjects)
+      .then((data) => {
+        setAllProjects(data);
+        setProjects(data);
+      })
       .catch(setError);
   }, [token]);
 
   useEffect(reload, [reload]);
+
+  // Client-seitiges Filtern und Sortieren
+  const filteredProjects = sortData(projects, sortConfig);
+
+  const handleSort = (key: keyof ProjectDto) => {
+    setSortConfig((current) => {
+      if (current?.key === key) {
+        return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+  };
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();
@@ -36,33 +55,48 @@ export function ProjectsPage() {
     setCreateError(null);
     try {
       const created = await scanApi.createProject(token, name.trim());
+      setAllProjects((prev) => [...prev, created]);
+      setProjects((prev) => [...prev, created]);
+      addToast('Projekt angelegt', 'success');
       navigate(`/projects/${created.id}`);
     } catch (err) {
       setCreateError(err);
+      addToast('Fehler beim Anlegen des Projekts', 'error');
     } finally {
       setBusy(false);
     }
   }
 
+  const navigate = useNavigate();
+
   return (
     <div>
+      <Breadcrumbs
+        items={[
+          { label: 'Projekte', to: '/projects' },
+        ]}
+      />
       <h1>Projekte</h1>
       {error ? <ErrorBox error={error} /> : null}
-      {!projects && !error ? <Spinner label="Projekte werden geladen…" /> : null}
-      {projects && projects.length === 0 ? (
+      {!allProjects.length && !error ? <Spinner label="Projekte werden geladen…" /> : null}
+      {allProjects.length === 0 ? (
         <EmptyState text="Noch keine Projekte in deinem Sichtbereich. Lege rechts ein erstes an." />
       ) : null}
-      {projects && projects.length > 0 ? (
+      {allProjects.length > 0 ? (
         <div className="card">
           <table>
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Angelegt am</th>
+                <th className="sortable" onClick={() => handleSort('name')}>
+                  Name {getSortIcon(sortConfig, 'name')}
+                </th>
+                <th className="sortable" onClick={() => handleSort('createdAt')}>
+                  Angelegt am {getSortIcon(sortConfig, 'createdAt')}
+                </th>
               </tr>
             </thead>
             <tbody>
-              {projects.map((p) => (
+              {filteredProjects.map((p) => (
                 <tr key={p.id}>
                   <td>
                     <Link to={`/projects/${p.id}`}>{p.name}</Link>

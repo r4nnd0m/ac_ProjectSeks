@@ -8,8 +8,8 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { scanApi } from '../api/scanApi';
-import { ApiError } from '../api/http';
-import { ErrorBox, Field, SeverityBadge, Spinner, StatusBadge } from '../components/ui';
+import { ApiError, describeError } from '../api/http';
+import { ErrorBox, Field, SeverityBadge, Spinner, StatusBadge, useToast } from '../components/ui';
 import { dueLabel, formatDateTime } from '../utils';
 import type { Severity, TicketDto } from '../types';
 
@@ -19,6 +19,7 @@ const MAX_REASON = 2000;
 export function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { token, user } = useAuth();
+  const { addToast } = useToast();
 
   const [ticket, setTicket] = useState<TicketDto | null>(null);
   const [error, setError] = useState<unknown>(null);
@@ -50,16 +51,20 @@ export function TicketDetailPage() {
   }, [reload]);
 
   /** Führt eine Aktion aus und lädt das Ticket danach neu (take/close/accept-risk liefern 204). */
-  async function run(action: () => Promise<unknown>, onError: (e: unknown) => void = setActionError): Promise<boolean> {
+  async function run(action: () => Promise<unknown>, onError: (e: unknown) => void = setActionError, successMsg?: string): Promise<boolean> {
     setBusy(true);
     setActionError(null);
     setRiskError(null);
     try {
       await action();
       await reload();
+      if (successMsg) addToast(successMsg, 'success');
       return true;
     } catch (err) {
+      const msg = describeError(err);
+      setActionError(err);
       onError(err);
+      addToast(msg, 'error');
       return false;
     } finally {
       setBusy(false);
@@ -75,15 +80,17 @@ export function TicketDetailPage() {
 
   async function onSave(e: FormEvent) {
     e.preventDefault();
-    const ok = await run(() =>
-      scanApi.updateTicket(token!, t.id, { title: title.trim(), description: description.trim(), severity }),
+    const ok = await run(
+      () => scanApi.updateTicket(token!, t.id, { title: title.trim(), description: description.trim(), severity }),
+      undefined,
+      'Änderungen gespeichert',
     );
     if (ok) setEditing(false);
   }
 
   async function onAcceptRisk(e: FormEvent) {
     e.preventDefault();
-    const ok = await run(() => scanApi.acceptRisk(token!, t.id, reason.trim()), setRiskError);
+    const ok = await run(() => scanApi.acceptRisk(token!, t.id, reason.trim()), setRiskError, 'Risiko akzeptiert');
     if (ok) setReason('');
   }
 
@@ -133,10 +140,10 @@ export function TicketDetailPage() {
         {finished ? <p className="hint">Das Ticket ist abgeschlossen.</p> : null}
         {!finished ? (
           <div style={{ display: 'flex', gap: 'var(--spacing-sm)', flexWrap: 'wrap', alignItems: 'center' }}>
-            <button type="button" disabled={busy} onClick={() => run(() => scanApi.takeTicket(token, t.id))}>
+            <button type="button" disabled={busy} onClick={() => run(() => scanApi.takeTicket(token, t.id), undefined, 'Ticket übernommen')}>
               Übernehmen
             </button>
-            <button type="button" className="secondary" disabled={busy} onClick={() => run(() => scanApi.closeTicket(token, t.id))}>
+            <button type="button" className="secondary" disabled={busy} onClick={() => run(() => scanApi.closeTicket(token, t.id), undefined, 'Ticket geschlossen')}>
               Schließen
             </button>
             <button type="button" className="secondary" disabled={busy} onClick={() => setEditing((v) => !v)}>

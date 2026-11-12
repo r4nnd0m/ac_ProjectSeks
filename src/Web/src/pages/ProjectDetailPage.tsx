@@ -6,7 +6,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { scanApi } from '../api/scanApi';
 import { describeError } from '../api/http';
-import { EmptyState, ErrorBox, Field, Spinner, StatusBadge } from '../components/ui';
+import { EmptyState, ErrorBox, Field, Spinner, StatusBadge, useToast } from '../components/ui';
 import { verdictLabels } from '../utils';
 import { formatDateTime, formatDate } from '../utils';
 import type { ProjectDto, ScanSummaryDto } from '../types';
@@ -35,6 +35,7 @@ export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { token } = useAuth();
   const navigate = useNavigate();
+  const { addToast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [project, setProject] = useState<ProjectDto | null>(null);
@@ -88,13 +89,17 @@ export function ProjectDetailPage() {
       return;
     }
     setUploading(true);
+    let uploadError: string | null = null;
     try {
       const created = await scanApi.createScan(token, id, version.trim(), sbomText);
       navigate(`/scans/${created.scanId}`);
     } catch (err) {
-      setUploadError(describeError(err));
+      uploadError = describeError(err);
+      setUploadError(uploadError);
+      addToast('Fehler beim Upload', 'error');
     } finally {
       setUploading(false);
+      if (!uploadError) addToast('Scan gestartet', 'success');
     }
   }
 
@@ -171,7 +176,9 @@ export function ProjectDetailPage() {
             <button type="submit" disabled={uploading || !sbomText.trim()}>
               {uploading ? 'Upload läuft…' : 'Scan starten'}
             </button>
-            <button type="button" className="secondary" onClick={reload}>Aktualisieren</button>
+            <button type="button" className="secondary" onClick={() => { reload(); addToast('Scans aktualisiert', 'info'); }}>
+              Aktualisieren
+            </button>
           </div>
         </form>
       </div>

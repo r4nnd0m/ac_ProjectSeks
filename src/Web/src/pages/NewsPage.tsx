@@ -3,61 +3,74 @@
 // http/https, in neuem Tab mit rel="noopener noreferrer".
 
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { newsApi } from '../api/newsApi';
-import { EmptyState, ErrorBox, Spinner } from '../components/ui';
+import { EmptyState, ErrorBox, Skeleton, Spinner, useToast } from '../components/ui';
 import { formatDate, safeHttpUrl } from '../utils';
 import type { NewsItemDto } from '../types';
 
 export function NewsPage() {
+  const { addToast } = useToast();
+  const navigate = useNavigate();
   const [items, setItems] = useState<NewsItemDto[] | null>(null);
   const [error, setError] = useState<unknown>(null);
 
   const reload = useCallback(() => {
     setError(null);
     setItems(null);
-    newsApi.list().then(setItems).catch(setError);
+    newsApi.list().then(setItems).catch(setError).finally(() => {
+      addToast('Meldungen aktualisiert', 'info');
+    });
   }, []);
 
   useEffect(reload, [reload]);
 
   return (
-    <div className="content">
-      <p><Link to="/projects">← Zur Anwendung</Link></p>
-      <h1>Öffentliche Meldungen</h1>
-      <p className="hint">Sicherheitshinweise aus externen Quellen – ohne Anmeldung lesbar.</p>
+    <div>
+      <main className="content">
+        <div className="public-content">
+          <h1>Öffentliche Meldungen</h1>
+          <p className="hint">Sicherheitshinweise aus externen Quellen – ohne Anmeldung lesbar.</p>
 
-      {error ? <ErrorBox error={error} /> : null}
-      {!items && !error ? <Spinner label="Meldungen werden geladen…" /> : null}
-      {items && items.length === 0 ? <EmptyState text="Zurzeit liegen keine Meldungen vor." /> : null}
+          <div className="public-actions">
+            <button type="button" className="secondary" onClick={() => navigate('/projects')}>
+              ← Zur Anwendung
+            </button>
+            <button type="button" className="secondary" onClick={reload}>
+              Neu laden
+            </button>
+          </div>
 
-      {items && items.length > 0 ? (
-        <section>
-          {items.map((n, index) => {
-            const link = safeHttpUrl(n.link);
-            return (
-              <article className="newsitem" key={`${n.link}-${index}`}>
-                <h2 style={{ margin: 'var(--spacing-sm) 0' }}>{n.title}</h2>
-                <p className="meta">
-                  Quelle: {n.source} · {formatDate(n.publishedAt)}
-                  {link ? (
-                    <>
-                      {' '}·{' '}
-                      <a href={link} target="_blank" rel="noopener noreferrer">
-                        Zur Meldung
-                      </a>
-                    </>
-                  ) : null}
-                </p>
-              </article>
-            );
-          })}
-        </section>
-      ) : null}
+          {error ? <ErrorBox error={error} /> : null}
+          {!items && !error ? <Spinner label="Meldungen werden geladen…" /> : null}
+          {items && items.length === 0 ? <EmptyState text="Zurzeit liegen keine Meldungen vor." /> : null}
 
-      <p>
-        <button type="button" className="secondary" onClick={reload}>Neu laden</button>
-      </p>
+          {items && items.length > 0 ? (
+            <div className="card news-list">
+              {items.map((n, index) => {
+                const link = safeHttpUrl(n.link);
+                return (
+                  <article className="news-card" key={`${n.link}-${index}`}>
+                    <h2>{n.title}</h2>
+                    <div className="news-meta">
+                      <span className="badge source-badge">{n.source}</span>
+                      <span className="hint">{formatDate(n.publishedAt)}</span>
+                      {link ? (
+                        <>
+                          {' '}·{' '}
+                          <a href={link} target="_blank" rel="noopener noreferrer">
+                            Zur Meldung <span aria-hidden="true">↗</span>
+                          </a>
+                        </>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+      </main>
     </div>
   );
 }

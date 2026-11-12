@@ -141,7 +141,7 @@ export async function mockListProjectScans(token: string, projectId: string): Pr
   return db.scans
     .filter((s) => s.projectId === projectId)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .map((s) => ({ id: s.id, version: s.version, status: s.status, verdict: s.verdict, createdAt: s.createdAt }));
+    .map((s) => ({ id: s.id, projectId: s.projectId, version: s.version, status: s.status, verdict: s.verdict, createdAt: s.createdAt }));
 }
 
 export async function mockCreateScan(token: string, projectId: string, version: string, bomJson: string): Promise<ScanCreatedDto> {

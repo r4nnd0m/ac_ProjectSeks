@@ -23,7 +23,7 @@ export function LoginPage() {
     setError(null);
     try {
       const result = await login(email, password);
-      navigate(result.mfaRequired ? '/mfa' : '/projects');
+      navigate(result.mfaRequired ? '/mfa' : '/dashboard');
     } catch (err) {
       setError(describeError(err));
     } finally {
@@ -32,9 +32,12 @@ export function LoginPage() {
   }
 
   return (
-    <div className="loginbox">
-      <div className="card">
-        <h1>Anmeldung</h1>
+    <div className="login-page">
+      <div className="login-card card">
+        <h1 className="brand-title">
+          <span>🔒</span> SIMS
+        </h1>
+        <p className="brand-sub">Security Incident Management System</p>
         <p className="hint">
           Neu bei SIMS? <Link to="/news">Öffentliche Meldungen</Link> sind auch ohne Anmeldung lesbar.
         </p>

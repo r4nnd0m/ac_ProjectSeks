@@ -21,7 +21,7 @@ export function MfaLoginPage() {
     setError(null);
     try {
       await verifyMfa(code);
-      navigate('/projects');
+      navigate('/dashboard');
     } catch (err) {
       setError(describeError(err));
     } finally {
@@ -30,9 +30,12 @@ export function MfaLoginPage() {
   }
 
   return (
-    <div className="loginbox">
-      <div className="card">
-        <h1>Zweiter Anmeldeschritt</h1>
+    <div className="login-page">
+      <div className="login-card card">
+        <h1 className="brand-title">
+          <span>🔒</span> SIMS
+        </h1>
+        <p className="brand-sub">Security Incident Management System</p>
         <p className="hint">
           Deine Anmeldung braucht einen Einmalcode (Zwei-Faktor). Gib den sechsstelligen Code
           aus deiner Authenticator-App ein.

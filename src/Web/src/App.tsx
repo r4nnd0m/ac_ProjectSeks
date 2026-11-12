@@ -3,9 +3,11 @@
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext';
 import type { ReactNode } from 'react';
+import { ToastProvider } from './components/ToastContext';
 import { LoginPage } from './pages/LoginPage';
 import { MfaLoginPage } from './pages/MfaLoginPage';
 import { MfaSetupPage } from './pages/MfaSetupPage';
+import { DashboardPage } from './pages/DashboardPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { ProjectDetailPage } from './pages/ProjectDetailPage';
 import { ScanResultPage } from './pages/ScanResultPage';
@@ -34,37 +36,41 @@ function RequireAdmin({ children }: { children: ReactNode }) {
 
 export function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/mfa" element={<MfaLoginPage />} />
-      <Route path="/news" element={<NewsPage />} />
-      <Route path="/hinweise" element={<HinweisePage />} />
+    <ToastProvider>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/mfa" element={<MfaLoginPage />} />
+        <Route path="/news" element={<NewsPage />} />
+        <Route path="/hinweise" element={<HinweisePage />} />
 
-      <Route element={<RequireAuth />}>
-        <Route element={<AppShell />}>
-          <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/projects/:id" element={<ProjectDetailPage />} />
-          <Route path="/scans/:id" element={<ScanResultPage />} />
-          <Route path="/tickets" element={<TicketsPage />} />
-          <Route path="/tickets/:id" element={<TicketDetailPage />} />
-          <Route path="/mfa-setup" element={<MfaSetupPage />} />
-          <Route
-            path="/admin/users"
-            element={<RequireAdmin><AdminUsersPage /></RequireAdmin>}
-          />
-          <Route
-            path="/admin/teams"
-            element={<RequireAdmin><AdminTeamsPage /></RequireAdmin>}
-          />
-          <Route
-            path="/admin/audit"
-            element={<RequireAdmin><AdminAuditPage /></RequireAdmin>}
-          />
+        <Route element={<RequireAuth />}>
+          <Route element={<AppShell />}>
+            <Route index element={<DashboardPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/projects/:id" element={<ProjectDetailPage />} />
+            <Route path="/scans/:id" element={<ScanResultPage />} />
+            <Route path="/tickets" element={<TicketsPage />} />
+            <Route path="/tickets/:id" element={<TicketDetailPage />} />
+            <Route path="/mfa-setup" element={<MfaSetupPage />} />
+            <Route
+              path="/admin/users"
+              element={<RequireAdmin><AdminUsersPage /></RequireAdmin>}
+            />
+            <Route
+              path="/admin/teams"
+              element={<RequireAdmin><AdminTeamsPage /></RequireAdmin>}
+            />
+            <Route
+              path="/admin/audit"
+              element={<RequireAdmin><AdminAuditPage /></RequireAdmin>}
+            />
+          </Route>
         </Route>
-      </Route>
 
-      <Route path="*" element={<Navigate to="/projects" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </ToastProvider>
   );
 }
 
