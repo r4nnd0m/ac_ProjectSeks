@@ -26,6 +26,23 @@ import * as mock from './mock/server';
 const base = () => simsConfig.scanUrl;
 const enc = encodeURIComponent;
 
+// Die Scan-API liefert höchstens 100 Einträge pro Seite.
+const MAX_PAGE_SIZE = 100;
+
+async function loadAllPages<T>(load: (page: number) => Promise<PagedDto<T>>): Promise<PagedDto<T>> {
+  const items: T[] = [];
+  let page = 1;
+  let total = 0;
+  do {
+    const res = await load(page);
+    items.push(...res.items);
+    total = res.totalCount;
+    if (res.items.length === 0) break;
+    page++;
+  } while (items.length < total);
+  return { items, page: 1, pageSize: items.length, totalCount: total };
+}
+
 export const scanApi = {
   // ------------------------------------------------------------ Projekte --
 
@@ -82,6 +99,10 @@ export const scanApi = {
     });
   },
 
+  listAllTickets(token: string, query: Omit<TicketQuery, 'page' | 'pageSize'> = {}): Promise<PagedDto<TicketDto>> {
+    return loadAllPages((page) => scanApi.listTickets(token, { ...query, page, pageSize: MAX_PAGE_SIZE }));
+  },
+
   getTicket(token: string, ticketId: string): Promise<TicketDto> {
     if (USE_MOCKS) return mock.mockGetTicket(token, ticketId);
     return request<TicketDto>(base(), `/tickets/${enc(ticketId)}`, { token });
@@ -122,5 +143,9 @@ export const scanApi = {
   listAudit(token: string, page = 1, pageSize = 20): Promise<PagedDto<AuditEntryDto>> {
     if (USE_MOCKS) return mock.mockListAudit(token, page, pageSize);
     return request<PagedDto<AuditEntryDto>>(base(), '/audit', { token, query: { page, pageSize } });
+  },
+
+  listAllAudit(token: string): Promise<PagedDto<AuditEntryDto>> {
+    return loadAllPages((page) => scanApi.listAudit(token, page, MAX_PAGE_SIZE));
   },
 };

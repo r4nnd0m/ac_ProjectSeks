@@ -23,7 +23,7 @@ export function AdminAuditPage() {
   const reload = useCallback(() => {
     if (!token) return;
     setError(null);
-    scanApi.listAudit(token, 1, 1000).then((res) => {
+    scanApi.listAllAudit(token).then((res) => {
       setAllAudit(res.items);
     }).catch(setError);
   }, [token]);

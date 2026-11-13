@@ -8,8 +8,6 @@ import { Breadcrumbs, SeverityBadge, StatusBadge, Spinner } from '../components/
 import { formatDate } from '../utils';
 import type { ProjectDto, ScanSummaryDto, TicketDto } from '../types';
 
-const PAGE_SIZE = 1000;
-
 export function DashboardPage() {
   const { token } = useAuth();
   const navigate = useNavigate();
@@ -29,7 +27,7 @@ export function DashboardPage() {
     try {
       const [projectsData, ticketsRes] = await Promise.all([
         scanApi.listProjects(token),
-        scanApi.listTickets(token, { page: 1, pageSize: PAGE_SIZE }),
+        scanApi.listAllTickets(token),
       ]);
 
       setProjects(projectsData);
@@ -91,7 +89,7 @@ export function DashboardPage() {
   // Neueste Scans (bereits sortiert in loadData)
   const latestScans = allScans.slice(0, 5);
 
-  // Neueste Tickets (bereits sortiert via listTickets mit pageSize 1000 → sortBy createdAt desc im Backend)
+  // Neueste Tickets (Backend liefert sie nach createdAt absteigend)
   const latestTickets = allTickets.filter(isOpenOrInProgress).slice(0, 5);
 
   return (

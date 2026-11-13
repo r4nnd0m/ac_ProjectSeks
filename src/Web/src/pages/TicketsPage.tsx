@@ -30,12 +30,10 @@ export function TicketsPage() {
     if (!token) return;
     setError(null);
     scanApi
-      .listTickets(token, {
+      .listAllTickets(token, {
         status: status || undefined,
         severity: severity || undefined,
         assignedToMe: mine || undefined,
-        page: 1,
-        pageSize: 1000,
       })
       .then((res) => {
         setAllTickets(res.items);
