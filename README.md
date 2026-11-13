@@ -24,6 +24,9 @@
                 \__      __/
                    \____/
 ```
+<p align="center">
+  <img src="CMSLPD-Schild-Pixel.png" width="152" height="152" alt="CMSLPD – blaues Pixelschild mit Kristall">
+</p>
 
 # SIMS – Security Incident Management System
 
