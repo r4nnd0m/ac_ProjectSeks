@@ -1,4 +1,13 @@
+
+<img src="./CMSLPD-Schild-Pixel.png" alt="CMSLPD – blauer Kristall auf einem Pixelschild" width="220">
+
+
+
+
+
 ## Gemeinsamer Teststand für die Worker-Integration
+
+
 
 Auf `main-test` liegen Stefans Worker (D1–D4), die Offline-Demo und die Übergaben.
 Die [Teamübersicht](docs/worker/ABSTIMMUNG_TEAM_WORKER.txt) beschreibt den gemeinsamen Testfall.
