@@ -2,7 +2,7 @@
 // „Meine Tickets“ sowie Seitenwahl (Paging beginnt bei 1). Neue Tickets per POST /tickets.
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { scanApi } from '../api/scanApi';
 import { Breadcrumbs, EmptyState, ErrorBox, Field, SeverityBadge, Spinner, StatusBadge, useToast, getSortIcon, sortData } from '../components/ui';
@@ -14,7 +14,6 @@ const PAGE_SIZE = 10;
 export function TicketsPage() {
   const { token } = useAuth();
   const { addToast } = useToast();
-  const location = useLocation();
 
   const [status, setStatus] = useState<'' | TicketStatus>('');
   const [severity, setSeverity] = useState<'' | Severity>('');

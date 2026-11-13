@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { newsApi } from '../api/newsApi';
-import { EmptyState, ErrorBox, Skeleton, Spinner, useToast } from '../components/ui';
+import { EmptyState, ErrorBox, Spinner, useToast } from '../components/ui';
 import { formatDate, safeHttpUrl } from '../utils';
 import type { NewsItemDto } from '../types';
 

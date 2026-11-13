@@ -3,7 +3,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { simsConfig, USE_MOCKS } from '../config';
-import { DemoBadge, Breadcrumbs } from './ui';
+import { DemoBadge } from './ui';
 import { ThemeToggle } from './ThemeToggle';
 
 export function Layout() {

@@ -5,12 +5,6 @@ import { Link } from 'react-router-dom';
 import type { Severity, Verdict } from '../types';
 import { ApiError, MESSAGES, describeError } from '../api/http';
 import { severityLabels, statusLabels, verdictLabels } from '../utils';
-import { ToastProvider, useToast } from './ToastContext';
-import { ConfirmDialog } from './ConfirmDialog';
-import { Skeleton, SkeletonText, SkeletonBlock, SkeletonCard } from './Skeleton';
-import { AdminTabs } from './AdminTabs';
-import { Breadcrumbs } from './Breadcrumbs';
-import { SortConfig, getSortIcon, sortData } from '../utils/sort';
 
 export function Spinner({ label }: { label: string }) {
   return (

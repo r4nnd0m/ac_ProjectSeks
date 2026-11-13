@@ -2,7 +2,7 @@
 // sehen das eigene Team, Admins alle – das filtert die Scan-API.
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { scanApi } from '../api/scanApi';
 import { Breadcrumbs, EmptyState, ErrorBox, Field, Spinner, useToast, getSortIcon, sortData } from '../components/ui';
@@ -12,7 +12,6 @@ import type { ProjectDto } from '../types';
 export function ProjectsPage() {
   const { token } = useAuth();
   const { addToast } = useToast();
-  const location = useLocation();
 
   const [projects, setProjects] = useState<ProjectDto[]>([]);
   const [allProjects, setAllProjects] = useState<ProjectDto[]>([]);
