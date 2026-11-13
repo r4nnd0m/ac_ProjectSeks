@@ -715,12 +715,13 @@ ac_ProjectSeks/
 
 | Version | Zeitraum | Inhalt |
 | --- | --- | --- |
-| **1.0.0** | Nov 2026 | ✅ Auth-, Scan- und News-API, Worker, Web-Frontend, MFA, Eskalation, Audit, Redis-Logging, Docker, SAST |
-| 1.1.0 | Dez 2026 | `react-router` auf 7.18 aktualisieren; CI-Pipeline (GitHub Actions) mit Build, Tests, Semgrep und `npm audit` |
+| **1.0.0** | Nov 2026 | ✅ Auth-, Scan- und News-API, Worker, Web-Frontend, MFA, Eskalation, Audit, Redis-Logging, Docker, SAST; Auth: Logout mit Sperrliste (Redis), Rate Limiting |
+| 1.1.0 | Dez 2026 | `react-router` auf 7.18 aktualisieren; CI-Pipeline (GitHub Actions) mit Build, Tests, Semgrep und `npm audit`; Auth: Scan-API prüft die Sperrliste, Rate Limit pro echter Client-IP, automatische Auth-Tests |
 | 1.2.0 | Jän 2027 | SBOM-Erzeugung im Build + **Dependency-Track** als zusätzlicher Container |
-| 1.3.0 | Feb 2027 | Sofortiger Token-Widerruf beim Deaktivieren eines Benutzers, Refresh-Tokens |
+| 1.3.0 | Feb 2027 | Sofortiger Token-Widerruf beim Deaktivieren eines Benutzers, Refresh-Tokens; Auth: MFA härten (Backup-Codes, Zwischentoken und Codes nur einmal benutzbar) |
 | 1.4.0 | Mär 2027 | Benachrichtigungen bei Eskalation (E-Mail / Microsoft Teams) |
-| 2.0.0 | Q2 2027 | Anbindung externer Systeme (z. B. **Jira**), eigene SQL-Logins je Dienst, TLS im Container-Netz, Cloud-Deployment |
+| 2.0.0 | Q2 2027 | Anbindung externer Systeme (z. B. **Jira**), eigene SQL-Logins je Dienst, TLS im Container-Netz, Cloud-Deployment; Auth: asymmetrische Token-Signatur mit austauschbarem Algorithmus (`kid`), Schlüssel im Tresor |
+| 3.0.0 | offen | Auth: Post-Quanten-Kryptografie (**PQC**), Token-Signatur mit ML-DSA zunächst hybrid, hybrider Schlüsselaustausch für TLS |
 
 ---
 
