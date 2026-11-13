@@ -85,9 +85,9 @@ public class NewsService
             }
             catch (Exception ex)
             {
-              _logger.LogWarning("Feed {Host} konnte nicht geladen werden ({Fehler}).", new Uri(url).Host, ex.GetType().Name);
+                _logger.LogWarning("Feed {Host} konnte nicht geladen werden ({Fehler}).", new Uri(url).Host, ex.GetType().Name);
             }
-        }   
+        }
 
         return all
             .Where(n => TextSanitizer.IsSafeLink(n.Link))
@@ -96,7 +96,7 @@ public class NewsService
                 Title = TextSanitizer.Clean(n.Title),
                 Source = TextSanitizer.Clean(n.Source, 100)
             })
-            .OrderByDescending(n => n.PublishedAT)
+            .OrderByDescending(n => n.PublishedAt)
             .Take(MaxItems)
             .ToList();
     }

@@ -69,6 +69,7 @@ public class TicketsController(ITicketService ticketService) : ControllerBase
         TicketOutcome outcome = await ticketService.CloseAsync(id, User);
         return ToResult(outcome);
     }
+
     [HttpPost("{id:guid}/accept-risk")]
     [Authorize(Policy = Policies.AdminOnly)]
     [Authorize(Policy = Policies.MfaRequired)]

@@ -1,9 +1,6 @@
 namespace Worker;
 
-/// <summary>
-/// Regelmäßiges Lebenszeichen der Anwendung, unabhängig von der Scan-Dauer.
-/// Eine Meldung bestätigt keinen erfolgreichen Scan.
-/// </summary>
+// Lebenszeichen im Log, unabhängig davon, ob gerade gescannt wird.
 public sealed class HeartbeatJob(ILogger<HeartbeatJob> logger, TimeProvider clock) : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromMinutes(5);
@@ -23,7 +20,6 @@ public sealed class HeartbeatJob(ILogger<HeartbeatJob> logger, TimeProvider cloc
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-            // Das Stoppsignal beendet auch das Warten auf den nächsten Zeitpunkt.
         }
     }
 }

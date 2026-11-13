@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using ScanApi.Dtos;
 using ScanApi.Services;
 using Sims.Contracts;
-using Sims.Shared.Audit;
 
 namespace ScanApi.Controllers;
 
@@ -19,5 +18,3 @@ public class AuditController(IAuditQueryService auditService) : ControllerBase
         return Ok(page);
     }
 }
-
-

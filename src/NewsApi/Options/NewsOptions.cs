@@ -1,8 +1,9 @@
 namespace NewsApi.Options;
+
 public class NewsOptions
 {
     public const string SectionName = "News";
 
-    // wie lang der Feed bleibt
+    // Wie lange die geladenen Meldungen im Cache bleiben.
     public int RefreshMinutes { get; set; } = 30;
 }

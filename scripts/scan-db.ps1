@@ -20,10 +20,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'EF konnte die Scan-Migrationen nicht auflisten. Prüfe dotnet ef --version.' }
     $migrations = ($list -join [Environment]::NewLine) | ConvertFrom-Json
     if (-not $migrations) {
-        throw 'Keine EF-Migration für SimsDbContext gefunden. Zuerst Patriks B1-Migration in diesen Branch übernehmen.'
+        throw 'Keine EF-Migration für SimsDbContext gefunden.'
     }
     dotnet ef migrations has-pending-model-changes @ef
-    if ($LASTEXITCODE -ne 0) { throw 'EF konnte den Modellstand nicht bestätigen. Prüfe die Ausgabe und ggf. die Folgemigration für Tickets und Audit.' }
+    if ($LASTEXITCODE -ne 0) { throw 'Das Modell hat Änderungen ohne Migration. Zuerst dotnet ef migrations add ausführen.' }
 
     if ($OutputSql) {
         dotnet ef migrations script --idempotent --output $OutputSql @ef

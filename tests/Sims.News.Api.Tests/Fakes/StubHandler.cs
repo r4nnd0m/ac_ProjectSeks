@@ -3,7 +3,6 @@ using System.Text;
 
 namespace Sims.News.Api.Tests.Fakes;
 
-/// <summary>Liefert auf jede Anfrage denselben festen Text – statt echtem Internet.</summary>
 public class StubHandler : HttpMessageHandler
 {
     private readonly string _content;

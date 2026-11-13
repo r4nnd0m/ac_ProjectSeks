@@ -2,6 +2,6 @@ namespace Worker.Enrichment;
 
 public interface IEpssClient
 {
-    /// <summary>Vorhandene EPSS-Werte. Fehlende CVEs haben keinen Eintrag, niemals automatisch 0.</summary>
+    // CVEs ohne EPSS-Wert fehlen im Ergebnis (nicht 0).
     Task<Dictionary<string, double>> GetScoresAsync(IReadOnlyList<string> cves, CancellationToken ct);
 }

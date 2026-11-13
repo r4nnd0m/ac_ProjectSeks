@@ -10,6 +10,7 @@ public sealed class ScanPollingService(
     TimeProvider clock) : BackgroundService
 {
     private bool recoveryCompleted;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var intervalSeconds = options.Value.PollIntervalSeconds;
@@ -21,7 +22,6 @@ public sealed class ScanPollingService(
 
         try
         {
-            // Der erste Durchlauf startet sofort, weitere folgen im eingestellten Abstand.
             do
             {
                 stoppingToken.ThrowIfCancellationRequested();
@@ -34,7 +34,6 @@ public sealed class ScanPollingService(
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-            // Strg+C beendet auch das Warten auf den nächsten Durchlauf.
         }
         finally
         {
@@ -46,26 +45,22 @@ public sealed class ScanPollingService(
     {
         try
         {
-            // Ein eigener Arbeitsbereich mit eigenem DbContext pro Durchlauf.
-            // AsyncScope räumt ebenso Dienste mit asynchronem Dispose zuverlässig auf.
+            // Neuer Scope pro Durchlauf, damit jeder Durchlauf einen frischen DbContext bekommt.
             await using var scope = scopes.CreateAsyncScope();
             if (!recoveryCompleted)
             {
                 await scope.ServiceProvider.GetRequiredService<IScanRecovery>().RecoverAsync(stoppingToken);
                 recoveryCompleted = true;
             }
-            // Fehler in Recovery verhindert neue Scans. Nächster Takt versucht sie erneut.
             var processor = scope.ServiceProvider.GetRequiredService<IScanProcessor>();
             await processor.ProcessPendingAsync(stoppingToken);
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-            // Ein gewünschtes Beenden ist kein fehlgeschlagener Scan-Durchlauf.
             throw;
         }
         catch (Exception exception)
         {
-            // Auch die Konsolenausgabe soll keine fremden Fehlermeldungen mit Secrets enthalten.
             logger.LogError(
                 "Scan-Durchlauf fehlgeschlagen ({ErrorType}). " +
                 "Der nächste Durchlauf wird erneut versucht.",

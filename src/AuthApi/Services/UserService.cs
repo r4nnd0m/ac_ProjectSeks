@@ -4,7 +4,6 @@ using AuthApi.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Sims.Contracts;
-using StackExchange.Redis;
 
 namespace AuthApi.Services;
 
@@ -20,7 +19,6 @@ public class UserService
     }
 
     public async Task<UserResult> CreateAsync(CreateUserRequest request)
-
     {
         if (!Roles.All.Contains(request.Role))
         {
@@ -54,12 +52,12 @@ public class UserService
             string[] errors = roleResult.Errors.Select(e => e.Description).ToArray();
             return new UserResult(false, null, errors);
         }
+
         UserResponse response = new UserResponse(
             user.Id, user.Email!, request.Role, user.TeamId, user.IsActive, user.TwoFactorEnabled);
 
         return new UserResult(true, response, []);
     }
-
 
     public async Task<List<UserResponse>> ListAsync()
     {

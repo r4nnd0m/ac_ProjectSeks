@@ -22,8 +22,7 @@ internal sealed class SqlEscalationStore(SimsDbContext db) : IEscalationStore
 {
     public async Task<IReadOnlyList<IEscalationTicket>> GetDueTicketsAsync(DateTimeOffset now, CancellationToken ct)
     {
-        // Auch wenn die API gleichzeitig ein Ticket schließt, muss die Entscheidung
-        // auf dem gelesenen Stand beruhen. Der Job entsorgt bei Abbruch den gesamten Scope.
+        // RepeatableRead, damit ein parallel geschlossenes Ticket nicht trotzdem eskaliert wird.
         await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
         var tickets = await db.Tickets.Where(t => t.Status != TicketStatus.Closed
                 && t.Status != TicketStatus.RiskAccepted && t.EscalationLevel < 3 && t.DueAt < now)

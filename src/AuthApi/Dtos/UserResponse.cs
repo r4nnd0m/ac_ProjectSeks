@@ -1,8 +1,4 @@
-﻿using System;
-using System.ComponentModel.DataAnnotations;
-
-
-namespace AuthApi.Dtos;
+﻿namespace AuthApi.Dtos;
 
 public record UserResponse(
     Guid Id,
@@ -10,7 +6,4 @@ public record UserResponse(
     string Role,
     Guid TeamId,
     bool IsActive,
-    bool MfaEnabled
-    );
-
-
+    bool MfaEnabled);

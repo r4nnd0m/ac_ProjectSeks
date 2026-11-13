@@ -59,7 +59,7 @@ public sealed class EpssClient(HttpClient http, ILogger<EpssClient> logger) : IE
         var length = 0;
         foreach (var cve in cves)
         {
-            // FIRST begrenzt den cve-Parameter zusätzlich auf 2000 Zeichen inkl. Kommas.
+            // Die FIRST-API erlaubt höchstens 2000 Zeichen im cve-Parameter.
             if (batch.Count == 50 || length + 1 + cve.Length > 2000)
             {
                 yield return batch.ToArray();

@@ -2,7 +2,6 @@ using System.Text.Json.Serialization;
 
 namespace Worker.Osv;
 
-// Nur das HTTP-Format von OSV. Diese Typen bleiben innerhalb des Workers.
 internal sealed record OsvBatchRequest(List<OsvQuery> Queries);
 internal sealed record OsvQuery(OsvPackage Package);
 internal sealed record OsvPackage(string Purl);

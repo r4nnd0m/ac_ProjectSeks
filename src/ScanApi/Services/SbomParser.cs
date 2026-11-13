@@ -1,6 +1,5 @@
 using ScanApi.Models;
 using Sims.Shared.Entities;
-using Sims.Shared.Enums;
 
 namespace ScanApi.Services;
 
@@ -31,27 +30,32 @@ public class CycloneDxParser : ISbomParser
         {
             foreach (var item in bom.Components)
             {
+                var valid = true;
                 if (string.IsNullOrWhiteSpace(item.Name))
+                {
                     errors.Add("Eine Komponente hat keinen Namen.");
+                    valid = false;
+                }
                 if (string.IsNullOrWhiteSpace(item.Version))
+                {
                     errors.Add("Eine Komponente hat keine Version.");
-                if (string.IsNullOrWhiteSpace(item.Purl) || !item.Purl.StartsWith("pkg:", StringComparison.OrdinalIgnoreCase))
+                    valid = false;
+                }
+                if (string.IsNullOrWhiteSpace(item.Purl) || !item.Purl.Trim().StartsWith("pkg:", StringComparison.OrdinalIgnoreCase))
+                {
                     errors.Add($"Komponente '{item.Name}' hat keine gültige PURL.");
+                    valid = false;
+                }
 
-                if (!string.IsNullOrWhiteSpace(item.Purl) && !seen.Add(item.Purl))
-                {
+                if (!valid || !seen.Add(item.Purl!.Trim()))
                     continue;
-                }
 
-                if (!string.IsNullOrWhiteSpace(item.Name) && !string.IsNullOrWhiteSpace(item.Version) && !string.IsNullOrWhiteSpace(item.Purl) && item.Purl.StartsWith("pkg:", StringComparison.OrdinalIgnoreCase))
+                validComponents.Add(new Component
                 {
-                    validComponents.Add(new Component
-                    {
-                        Name = item.Name.Trim(),
-                        Version = item.Version.Trim(),
-                        Purl = item.Purl.Trim(),
-                    });
-                }
+                    Name = item.Name!.Trim(),
+                    Version = item.Version!.Trim(),
+                    Purl = item.Purl!.Trim()
+                });
             }
         }
 

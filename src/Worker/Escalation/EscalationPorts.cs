@@ -1,11 +1,9 @@
 namespace Worker.Escalation;
 
-// SQL-Store und Audit verwenden die gemeinsamen B1/C1/C5-Typen.
-// Die Entscheidung zur nächsten Stufe kommt über den C4-Adapter.
 public interface IEscalationTicket
 {
     Guid Id { get; }
-    bool IsFinished { get; } // C1: Closed oder RiskAccepted.
+    bool IsFinished { get; }
     int EscalationLevel { get; }
     DateTimeOffset? DueAt { get; }
     void Escalate(int newLevel, string assignedRole, DateTimeOffset? newDueAt);
@@ -15,17 +13,15 @@ public sealed record EscalationStep(int Level, string AssignedRole, DateTimeOffs
 
 public interface IEscalationPolicy
 {
-    // C4 bestimmt Rolle und neue Frist. null bedeutet: keine Änderung.
+    // null = Ticket bleibt auf der aktuellen Stufe
     EscalationStep? NextLevel(IEscalationTicket ticket, DateTimeOffset now);
 }
 
 public interface IEscalationStore
 {
-    // Der SQL-Store liefert Wrapper um die getrackten C1-Tickets.
     Task<IReadOnlyList<IEscalationTicket>> GetDueTicketsAsync(DateTimeOffset now, CancellationToken ct);
 
-    // Ticketänderungen UND vorgemerkte Audit-Einträge in EINEM DbContext atomar speichern.
-    // Keine Änderungen bereits in GetDueTicketsAsync, Escalate oder RecordEscalation speichern.
+    // Speichert Ticketänderungen und Audit-Einträge gemeinsam in einer Transaktion.
     Task SaveChangesAsync(CancellationToken ct);
 }
 
@@ -37,7 +33,6 @@ public sealed record EscalationAuditEntry(
 
 public interface IEscalationAudit
 {
-    // C5-Adapter: AuditService.Record(..., AuditActions.TicketEscalated, ...).
-    // Nur vormerken, nicht selbst speichern. Derselbe DbContext wie IEscalationStore.
+    // Merkt den Eintrag nur vor, gespeichert wird über IEscalationStore.SaveChangesAsync.
     void RecordEscalation(EscalationAuditEntry entry);
 }

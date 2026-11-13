@@ -1,12 +1,10 @@
 namespace NewsApi.Options;
 
-
 public class FeedOptions
 {
     public const string SectionName = "Feeds";
 
     public List<string> Urls { get; set; } = [];
-
 
     public IEnumerable<string> ActiveUrls => Urls.Where(u => !string.IsNullOrWhiteSpace(u));
 

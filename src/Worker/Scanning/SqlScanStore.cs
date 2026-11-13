@@ -46,15 +46,14 @@ internal sealed class SqlScanStore(SimsDbContext db) : IScanStore
 
         try
         {
-            // C3 verwendet Component für Titel und Duplikatschlüssel. Die Komponenten existieren in B1.
+            // Component wird nur für Ticket-Titel und Duplikatprüfung gebraucht und existiert schon in der DB.
             foreach (var finding in result.Findings) db.Entry(finding).State = EntityState.Added;
             db.Tickets.AddRange(result.Tickets);
             await db.SaveChangesAsync(ct);
         }
         catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 515 or 547 or 2601 or 2627 or 2628 or 8152 })
         {
-            // NOT NULL, Fremdschlüssel, Eindeutigkeit oder Feldlänge: dieselben Daten
-            // erneut zu schreiben hilft nicht. Erst nach dem Rollback darf Failed folgen.
+            // NOT NULL, Fremdschlüssel, Unique oder Feldlänge: ein neuer Versuch würde genauso scheitern.
             await tx.RollbackAsync(ct);
             throw new ScanResultRejectedException(ex);
         }

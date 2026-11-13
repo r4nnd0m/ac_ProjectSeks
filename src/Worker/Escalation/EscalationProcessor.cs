@@ -1,9 +1,5 @@
 namespace Worker.Escalation;
 
-/// <summary>
-/// Verbindet Laden, Regelaufruf, Ticketänderung und Audit.
-/// Die registrierte C4-Regel entscheidet über Stufe, Rolle und Frist.
-/// </summary>
 public sealed class EscalationProcessor(
     IEscalationStore store,
     IEscalationPolicy policy,
@@ -20,7 +16,6 @@ public sealed class EscalationProcessor(
         foreach (var ticket in tickets)
         {
             ct.ThrowIfCancellationRequested();
-            // Auch an der Worker-Grenze prüfen. Die spätere SQL-Abfrage filtert ebenso.
             if (ticket.IsFinished || ticket.DueAt is null || ticket.DueAt >= now || ticket.EscalationLevel >= 3)
                 continue;
 

@@ -4,7 +4,6 @@ using Worker.Scanning;
 
 namespace Worker;
 
-/// <summary>Verbindet die Scan-Aufträge mit Quellen, Urteil und Ticketerstellung.</summary>
 public sealed class ScanProcessor(
     IScanStore store, IOsvClient osv, IFindingEnricher enricher,
     IScanVerdictCalculator verdicts, IScanTicketPlanner tickets,
@@ -17,7 +16,6 @@ public sealed class ScanProcessor(
     {
         cancellationToken.ThrowIfCancellationRequested();
         var pending = await store.GetPendingAsync(BatchSize, cancellationToken);
-        // Die SQL-Abfrage muss ebenfalls sortieren/begrenzen. Hier zusätzlich absichern.
         foreach (var scan in pending.OrderBy(s => s.CreatedAt).ThenBy(s => s.Id)
                      .DistinctBy(s => s.Id).Take(BatchSize))
         {
@@ -40,7 +38,7 @@ public sealed class ScanProcessor(
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                // Scanning bleibt stehen; die Start-Recovery übernimmt beim Neustart.
+                // Scan bleibt auf Scanning und wird beim nächsten Start zurückgesetzt.
                 throw;
             }
             catch (Exception exception)
@@ -51,9 +49,8 @@ public sealed class ScanProcessor(
                 continue;
             }
 
-            // Bei unklarem Commit-Ausgang NICHT blind Failed schreiben oder Tickets
-            // erneut erzeugen. Der SQL-Adapter muss atomar speichern. Fehler gehen an
-            // den Job; ein verbliebenes Scanning wird beim Neustart erkannt.
+            // Nur bei einem sicheren Rollback auf Failed setzen. Bei anderen Fehlern ist unklar,
+            // ob der Commit durchging, dann übernimmt die Recovery beim Neustart.
             cancellationToken.ThrowIfCancellationRequested();
             try
             {

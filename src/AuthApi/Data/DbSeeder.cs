@@ -13,8 +13,7 @@ public static class DbSeeder
         RoleManager<IdentityRole<Guid>> roleManager,
         IConfiguration config)
     {
-        string[] roleNames = { Roles.Developer, Roles.Lead, Roles.Admin };
-        foreach (string role in roleNames)
+        foreach (string role in Roles.All)
         {
             if (!await roleManager.RoleExistsAsync(role))
             {
@@ -27,7 +26,7 @@ public static class DbSeeder
         {
             team = new Team { Name = "Default" };
             db.Teams.Add(team);
-            await db.SaveChangesAsync(); 
+            await db.SaveChangesAsync();
         }
 
         string? email = config["Admin:Email"];
@@ -46,7 +45,7 @@ public static class DbSeeder
             IdentityResult result = await userManager.CreateAsync(admin, password);
             if (!result.Succeeded)
             {
-                throw new Exception("Admin konnte nicht angelegt werden!");
+                throw new InvalidOperationException("Admin konnte nicht angelegt werden.");
             }
 
             await userManager.AddToRoleAsync(admin, Roles.Admin);

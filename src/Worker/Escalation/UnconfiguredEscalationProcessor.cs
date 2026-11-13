@@ -1,13 +1,13 @@
 namespace Worker.Escalation;
 
-/// <summary>Sichtbarer Platzhalter, bis die echten Team-Adapter angeschlossen sind.</summary>
+// Läuft, wenn keine Datenbank konfiguriert ist.
 internal sealed class UnconfiguredEscalationProcessor(ILogger<UnconfiguredEscalationProcessor> logger) : IEscalationProcessor
 {
     public Task RunAsync(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         logger.LogInformation(
-            "Ticketeskalation pausiert. Sie benötigt ConnectionStrings:Sims und die registrierte Folgeregel (C4).");
+            "Ticketeskalation pausiert, ConnectionStrings:Sims ist nicht gesetzt.");
         return Task.CompletedTask;
     }
 }

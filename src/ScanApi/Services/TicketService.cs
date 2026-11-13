@@ -189,7 +189,6 @@ public class TicketService(SimsDbContext db, TimeProvider clock, AuditService au
         return TicketOutcome.Ok;
     }
 
-    // Lädt ein Ticket zum Ändern (mit Verfolgung) und beachtet dabei die Teamgrenze.
     private async Task<Ticket?> FindAsync(Guid id, ClaimsPrincipal user, CancellationToken ct)
     {
         return await db.Tickets.ForUser(user).FirstOrDefaultAsync(t => t.Id == id, ct);

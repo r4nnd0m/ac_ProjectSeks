@@ -48,7 +48,7 @@ public class RssFeedReaderTests
 
         Assert.Single(items);
         Assert.Equal("https://atom.test/1", items[0].Link);
-        Assert.Equal(new DateTimeOffset(2026, 11, 10, 9, 0, 0, TimeSpan.Zero), items[0].PublishedAT);
+        Assert.Equal(new DateTimeOffset(2026, 11, 10, 9, 0, 0, TimeSpan.Zero), items[0].PublishedAt);
     }
 
     [Fact]

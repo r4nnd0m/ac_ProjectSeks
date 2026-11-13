@@ -194,7 +194,6 @@ public sealed class WorkerLifecycleTests
 
         public async ValueTask DisposeAsync()
         {
-            // Der Arbeitsbereich muss auch asynchrones Aufräumen abwarten.
             await Task.Yield();
             state.RecordDisposal(_id);
         }

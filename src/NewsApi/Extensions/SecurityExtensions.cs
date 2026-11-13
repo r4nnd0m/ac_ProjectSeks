@@ -1,11 +1,8 @@
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Http.Features;
 
 namespace NewsApi.Extensions;
 
-/// <summary>
-/// Absicherung nach Vorlage S1 (aus der ScanApi übernommen, Namespace angepasst):
-/// ProblemDetails, CORS aus Cors:AllowedOrigins, Rate Limiting, Security-Header, Größenlimit.
-/// </summary>
 public static class SecurityExtensions
 {
     public const string CorsPolicy = "web";
@@ -50,8 +47,8 @@ public static class SecurityExtensions
         app.UseStatusCodePages();
         app.Use(async (context, next) =>
         {
-            // Größenlimit: Der News-Service nimmt keine Daten entgegen.
-            var limit = context.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
+            // Der News-Service nimmt keine Daten entgegen, daher ein kleines Limit.
+            var limit = context.Features.Get<IHttpMaxRequestBodySizeFeature>();
             if (limit is { IsReadOnly: false })
             {
                 limit.MaxRequestBodySize = 64 * 1024;

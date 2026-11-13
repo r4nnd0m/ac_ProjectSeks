@@ -1,6 +1,7 @@
 ﻿using Sims.Shared.Entities;
 using Sims.Shared.Enums;
-using Xunit;
+
+namespace Sims.Shared.Tests;
 
 public class TicketTests
 {
@@ -121,6 +122,7 @@ public class TicketTests
 
         Assert.Throws<InvalidOperationException>(() => ticket.Update("Titel", "Text", Severity.Low));
     }
+
     [Fact]
     public void AcceptRisk_sets_status_and_closed_at()
     {

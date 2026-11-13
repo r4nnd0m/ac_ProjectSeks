@@ -1,12 +1,12 @@
 namespace Worker.Scanning;
 
-// Ohne die gemeinsame Datenbank und die Teamregeln bleiben Aufträge unangetastet.
+// Läuft, wenn keine Datenbank konfiguriert ist.
 internal sealed class UnconfiguredScanProcessor(ILogger<UnconfiguredScanProcessor> logger) : IScanProcessor
 {
     public Task ProcessPendingAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        logger.LogInformation("Scan-Verarbeitung pausiert. Sie benötigt ConnectionStrings:Sims, das Scanurteil (B4) und die Startregel für Tickets (C4).");
+        logger.LogInformation("Scan-Verarbeitung pausiert, ConnectionStrings:Sims ist nicht gesetzt.");
         return Task.CompletedTask;
     }
 }

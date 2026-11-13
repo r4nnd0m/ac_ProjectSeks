@@ -1,6 +1,4 @@
 services:
-
-
   sql-init:
     image: busybox:latest
     user: root
@@ -109,14 +107,12 @@ services:
       context: .
       dockerfile: src/NewsApi/Dockerfile
     environment:
-      # Feste Feed-Liste (nur https). Ohne Angabe in .env gelten echte Standard-Feeds,
-      # der dritte Feed (heise, Atom) kommt aus appsettings.json.
+      # Nur https. Der dritte Feed (heise) kommt aus appsettings.json.
       - Feeds__Urls__0=${FEED_URL_1:-https://www.cert.at/cert-at.de.warnings.rss_2.0.xml}
       - Feeds__Urls__1=${FEED_URL_2:-https://www.cisa.gov/cybersecurity-advisories/all.xml}
       - News__RefreshMinutes=${NEWS_REFRESH_MINUTES:-30}
       - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS_0:-${CORS_ALLOWED_ORIGIN:-http://localhost:8080}}
-    # frontend-net ist nicht "internal": darüber erreicht der Dienst die externen Feeds.
-    # Kein Redis nötig – der News-Service nutzt einen Speicher-Cache.
+    # frontend-net ist nicht internal, darüber werden die Feeds geladen
     networks:
       - frontend-net
     ports:
@@ -147,11 +143,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    # Change Security_opt zu security_opt 
-    security_opt:          
+    security_opt:
       - no-new-privileges:true
-    # Change Cap_drop zu cap_drop
-    cap_drop:             
+    cap_drop:
       - ALL
     restart: unless-stopped
 
@@ -159,8 +153,7 @@ services:
     build:
       context: ./src/Web
       dockerfile: Dockerfile
-    # config.js ist im Image enthalten (relative Pfade /api/...); nginx leitet an die APIs weiter.
-    # Nur frontend-net: die Oberfläche braucht keinen Zugriff auf SQL und Redis.
+    # nginx leitet /api/... an die APIs weiter
     networks:
       - frontend-net
     ports:

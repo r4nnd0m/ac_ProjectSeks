@@ -100,7 +100,7 @@ public class MfaController : ControllerBase
         await _userManager.SetTwoFactorEnabledAsync(user, true);
         return NoContent();
     }
-    
+
     [EnableRateLimiting("login")]
     [HttpPost("verify")]
     public async Task<IActionResult> Verify(MfaVerifyRequest request)

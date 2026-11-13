@@ -2,8 +2,6 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>dotnet-Worker-a8f91b49-ee76-4744-95b0-cfb44c96391b</UserSecretsId>
   </PropertyGroup>
 

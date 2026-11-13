@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.EntityFrameworkCore.Infrastructure.Internal;
 using Microsoft.Extensions.Options;
 using Sims.Contracts;
 
@@ -34,7 +33,7 @@ public class AuthController : ControllerBase
         _options = options.Value;
         _blacklist = blacklist;
     }
-    
+
     [EnableRateLimiting("login")]
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequest request)
@@ -57,7 +56,7 @@ public class AuthController : ControllerBase
             string mfaToken = _tokenService.CreateMfaToken(user);
             return Ok(new LoginResponse(null, null, true, mfaToken));
         }
-        
+
         await _userManager.ResetAccessFailedCountAsync(user);
 
         IList<string> roles = await _userManager.GetRolesAsync(user);
@@ -66,7 +65,6 @@ public class AuthController : ControllerBase
 
         return Ok(new LoginResponse(token, _options.ExpiresMinutes * 60, false, null));
     }
-    
 
     [Authorize]
     [HttpGet("me")]
@@ -87,7 +85,7 @@ public class AuthController : ControllerBase
         IList<string> roles = await _userManager.GetRolesAsync(user);
         string role = roles.Single();
 
-        return Ok(new MeResponse(user.Id,user.Email!, role, user.TeamId,user.TwoFactorEnabled));
+        return Ok(new MeResponse(user.Id, user.Email!, role, user.TeamId, user.TwoFactorEnabled));
     }
 
     [Authorize]
@@ -105,5 +103,4 @@ public class AuthController : ControllerBase
         await _blacklist.RevokeAsync(jti, expiresAt);
         return NoContent();
     }
-    
 }

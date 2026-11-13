@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using Microsoft.Data.SqlClient;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -33,7 +35,10 @@ public sealed class SqlWorkerIntegrationTests
             var project = new Project { TeamId = Guid.NewGuid(), Name = "SQL-Test", CreatedAt = Now };
             db.Projects.Add(project);
             await db.SaveChangesAsync();
-            var api = new ScansController(db, new CycloneDxParser());
+            var api = new ScansController(db, new CycloneDxParser())
+            {
+                ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = TeamMember(project.TeamId) } }
+            };
             async Task<Guid> Upload(string version, string purl)
             {
                 var bom = new CycloneDxBom("CycloneDX", "1.5", [new("Example", "1", purl)]);
@@ -124,7 +129,7 @@ public sealed class SqlWorkerIntegrationTests
             var db = scope.ServiceProvider.GetRequiredService<SimsDbContext>();
             var project = new Project { Name = "Feldgrenze", CreatedAt = Now };
             var invalid = NewScan(project, 1);
-            // Ein gültiger B1-Komponentenname kann mit CVE und Version länger als C1.Title werden.
+            // Komponentenname + CVE + Version kann länger als die 200 Zeichen des Ticket-Titels werden.
             invalid.Components[0].Name = new string('x', 200);
             var valid = NewScan(project, 2);
             db.Scans.AddRange(invalid, valid);
@@ -180,7 +185,7 @@ public sealed class SqlWorkerIntegrationTests
                 db.Tickets.AddRange(due, closed);
                 await db.SaveChangesAsync();
             }
-            // Jeder Durchlauf benutzt wie der HostedService seinen eigenen Arbeitsbereich.
+            // Eigener Scope pro Durchlauf wie im ScanPollingService
             for (int i = 0; i < 3; i++)
             {
                 await using var scope = services.CreateAsyncScope();
@@ -255,7 +260,6 @@ public sealed class SqlWorkerIntegrationTests
         var migrations = db.Database.GetMigrations().ToArray();
         Assert.NotEmpty(migrations);
 
-        // Erst wenn SQL die neue Datenbank erfolgreich angelegt hat, gehört sie diesem Test.
         var creator = db.GetService<IRelationalDatabaseCreator>();
         await creator.CreateAsync();
         try
@@ -288,7 +292,11 @@ public sealed class SqlWorkerIntegrationTests
         public ScanVerdict Calculate(IReadOnlyList<EnrichedFinding> findings) => ScanVerdict.GoWithConditions;
     }
 
-
+    private static ClaimsPrincipal TeamMember(Guid teamId) => new(new ClaimsIdentity(
+    [
+        new Claim(ClaimNames.Sub, Guid.NewGuid().ToString()),
+        new Claim(ClaimNames.TeamId, teamId.ToString())
+    ], "Test"));
 }
 
 internal sealed class SqlServerFactAttribute : FactAttribute

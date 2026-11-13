@@ -3,10 +3,6 @@ using NewsApi.Services;
 
 namespace Sims.News.Api.Tests.Fakes;
 
-/// <summary>
-/// Ersatz für den echten Feed-Leser: liefert feste Listen oder wirft für
-/// bestimmte URLs eine Exception. Kein Netzwerk nötig.
-/// </summary>
 public class FakeFeedReader : IFeedReader
 {
     private readonly Dictionary<string, IReadOnlyList<NewsItem>> _feeds = new();

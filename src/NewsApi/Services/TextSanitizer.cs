@@ -3,10 +3,9 @@ using System.Text.RegularExpressions;
 
 namespace NewsApi.Services;
 
-// zum löschen von unnötigen Formatierungen, hilft auch bisl mit Sec Regex fürs suchn und löschen
+// Entfernt HTML aus Feed-Texten und lässt nur http(s)-Links durch.
 public static partial class TextSanitizer
 {
-
     public static string Clean(string? text, int maxLength = 200)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -26,7 +25,7 @@ public static partial class TextSanitizer
     public static bool IsSafeLink(string link)
     {
         return Uri.TryCreate(link, UriKind.Absolute, out Uri? uri)
-        && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp);
+            && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp);
     }
 
     [GeneratedRegex("<[^>]*>")]

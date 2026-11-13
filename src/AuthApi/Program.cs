@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using System.Threading.RateLimiting;
 using AuthApi.Data;
 using AuthApi.Models;
@@ -37,8 +38,8 @@ public class Program
             .AddDefaultTokenProviders();
 
         builder.Services.AddDataProtection();
-        // fix chwe
-        builder.Services.AddControllers().AddJsonOptions(options => { options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;});
+        builder.Services.AddControllers().AddJsonOptions(options =>
+            options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase);
         builder.Services.AddOpenApi();
 
         builder.Services.AddHealthChecks();
@@ -134,7 +135,6 @@ public class Program
             await DbSeeder.SeedAsync(db, userManager, roleManager, app.Configuration);
         }
 
-        // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
             app.MapScalarApiReference();
@@ -142,15 +142,10 @@ public class Program
         }
 
         app.UseHttpsRedirection();
-
         app.UseRateLimiter();
-
         app.UseAuthentication();
-
         app.UseAuthorization();
-
         app.MapControllers();
-
         app.MapHealthChecks("/health");
 
         app.Run();

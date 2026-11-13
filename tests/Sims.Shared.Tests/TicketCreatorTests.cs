@@ -3,7 +3,8 @@ using Sims.Shared.Entities;
 using Sims.Shared.Enums;
 using Sims.Shared.Escalation;
 using Sims.Shared.Tickets;
-using Xunit;
+
+namespace Sims.Shared.Tests;
 
 public class TicketCreatorTests
 {
@@ -128,6 +129,7 @@ public class TicketCreatorTests
 
         Assert.Single(result);
     }
+
     [Fact]
     public void Risk_accepted_ticket_prevents_duplicate()
     {

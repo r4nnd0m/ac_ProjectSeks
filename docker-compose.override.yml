@@ -1,5 +1,5 @@
-# Lokale Werkzeuge (Visual Studio, dotnet ef) greifen über Loopback zu.
-# Der Deployment-Aufruf mit explizitem -f docker-compose.yml verwendet nur das interne Netz.
+# Nur lokal: SQL und Redis auf 127.0.0.1 freigeben (Visual Studio, dotnet ef).
+# Für das Deployment mit -f docker-compose.yml starten, dann wird diese Datei ignoriert.
 services:
   sql:
     networks:

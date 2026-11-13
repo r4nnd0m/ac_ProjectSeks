@@ -2,7 +2,6 @@ using Worker.Osv;
 
 namespace Worker.Enrichment;
 
-/// <summary>Ergänzt OSV-Funde. Erst bei vollständigem Erfolg erhält der Aufrufer ein Ergebnis.</summary>
 public sealed class FindingEnricher(IKevClient kev, IEpssClient epss) : IFindingEnricher
 {
     public async Task<IReadOnlyList<EnrichedFinding>> EnrichAsync(IReadOnlyList<OsvFinding> findings, CancellationToken ct)

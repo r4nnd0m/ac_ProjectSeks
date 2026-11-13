@@ -7,5 +7,3 @@ public record CreateUserRequest(
     [Required] string Password,
     [Required] string Role,
     [Required] Guid TeamId);
-    
-

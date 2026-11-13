@@ -133,7 +133,6 @@ public sealed class WorkerRecoveryTests
             }
             public ValueTask DisposeAsync()
             {
-                // Mehrere DI-Verträge zeigen auf dieselbe scoped Instanz.
                 if (!disposed)
                 {
                     disposed = true;

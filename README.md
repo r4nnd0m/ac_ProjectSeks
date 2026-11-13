@@ -14,7 +14,6 @@ Für ein neues Arbeitspaket im vorhandenen Klon zuerst `git fetch origin` ausfü
 Zum Beispiel startet `git switch --no-track -c patrick/b1-datenmodell origin/main-test`
 einen eigenen Branch für B1. Beim Pull Request für den gemeinsamen Test `main-test` als Ziel auswählen.
 
-Die frühere Offline-Demo unter `examples/Sims.Worker.Demo` ist deaktiviert.
 Der Hintergrunddienst `ScanPollingService` holt Aufträge aus SQL. Der Dienstname in
 Docker bleibt `worker`. Die normalen Dienste verwenden die folgenden Regeln.
 
@@ -71,36 +70,27 @@ ein prüfbares SQL-Skript. Bei der Ausführung auf der Ziel-Datenbank übersprin
 bereits eingespielte Migrationen. Beide Befehle benötigen das .NET 10 SDK und
 `dotnet ef` 10. [Details und Testaufruf](docs/worker/D3_Scanablauf_Uebergabe.txt)
 
- Grundlegende Werkzeuge installieren
- Bevor du das Projekt herunterlädst, müssen ein paar Programme auf deinem PC installiert sein.
+### Voraussetzungen
 
- .NET 10 SDK herunterladen und installieren (wichtig für die Programmierung).
- Docker Desktop installieren (wichtig für die Datenbanken und Dienste).
- Git installieren (um den Code herunterzuladen).
- Visual Studio Rider (oder Visual Studio / VS Code) als Code-Editor installieren.   
- Überprüfung: Öffne dein Terminal (Eingabeaufforderung / PowerShell) und tippe dotnet --version (muss Version 10.x anzeigen) und docker --version.  
+- .NET 10 SDK
+- Docker Desktop
+- Git
+- Rider, Visual Studio oder VS Code
 
-Git abgleichen und ziehen
-Git diff
-Git pull
+Prüfen mit `dotnet --version` (10.x) und `docker --version`.
 
+### Kurzanleitung
 
-Creds in eine .env schieben
-Powershell:
-copy ".env.example" .env
+```powershell
+git pull
+copy .env.example .env        # danach Zugangsdaten anpassen
+docker compose up -d --build  # Stack starten
+docker compose down           # Stack stoppen
+```
 
-Docker Stack erstellen/starten
-		docker compose up -d --build
+Einzelne Dienste starten: `docker compose up -d sql` bzw. `docker compose up -d redis`.
 
-Docker Stack herunterfahren
-		docker compose down
-
-Einzelne Docker starten: 
- docker compose up -d sql (oder psql wenn postgres erwüscht)
- docker compose up -d redis
-
- !!!WICHTIG!!!
-Nicht blind reinkopieren. IMMER Pfade kontrollieren bzw. anpassen
+Befehle nicht blind kopieren, Pfade immer kontrollieren.
 
 ### Patrick – Scan-API A + Security-Basis
 
@@ -110,11 +100,8 @@ Nicht blind reinkopieren. IMMER Pfade kontrollieren bzw. anpassen
 - B5: Scan-Ergebnis lesen / Details
 - S1: Security-Basis (Auth, CORS, Rate Limiting, Header-Security)
 
+### Bekannte Punkte
 
-
-
-
-Beim Starten der AuthAPI Fehler wenn es auf localhost hört, da versucht Windows zuerst IPv6 dadurch rennt es in ein Timeout.
-Localhost auf 127.0.0.1 gestellt, dann nimmt er direkt IPv4 und kann mit dem Dockercontainer kommunizieren.
-
-Der ausgestellte Token ist nach dem Deaktivieren noch bis zu 15 Minuten gültig.
+- Wenn die Auth-API lokal auf `localhost` hört, versucht Windows zuerst IPv6 und läuft in ein Timeout.
+  Mit `127.0.0.1` statt `localhost` klappt die Verbindung zum Docker-Container.
+- Ein ausgestellter Token bleibt nach dem Deaktivieren des Users noch bis zu 15 Minuten gültig.

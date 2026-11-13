@@ -1,8 +1,3 @@
 ﻿namespace AuthApi.Dtos;
 
-public record TeamResponse(
-   Guid Id,
-    string Name
-    );
-
-
+public record TeamResponse(Guid Id, string Name);

@@ -15,7 +15,6 @@ public sealed class EscalationProcessorTests
         var clock = new FakeTimeProvider(Start);
         var ticket = new TestTicket { DueAt = Start.AddSeconds(-1) };
         var store = new Store(ticket);
-        // Vorgegebene Testantworten, keine Implementierung der C4-Regeln.
         var steps = new Queue<EscalationStep>([
             new(2, Roles.Lead, Start.AddSeconds(36)), new(3, Roles.Admin, null)
         ]);
@@ -166,7 +165,7 @@ public sealed class EscalationProcessorTests
         public EscalationStep? NextLevel(IEscalationTicket ticket, DateTimeOffset now) { Calls.Add(now); return next(ticket, now); }
     }
 
-    // Diese Testspeicherung prüft Aufrufreihenfolge. Sie ersetzt keinen SQL-Transaktionstest.
+    // Prüft nur die Aufrufreihenfolge, die Transaktion selbst testet SqlWorkerIntegrationTests.
     private sealed class Store(params TestTicket[] tickets) : IEscalationStore, IEscalationAudit
     {
         public TestTicket[] Tickets => tickets;
