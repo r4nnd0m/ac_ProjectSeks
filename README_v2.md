@@ -1,6 +1,11 @@
+<p align="center">
+  <img src="docs/assets/cmslpd-logo.png" alt="Logo Team CMSLPD" width="200">
+</p>
+
 # SIMS – Security Incident Management System
 
 > **„Sul Sul, Exploit!“** – Sicherheitsvorfälle erfassen, bewerten, eskalieren und nachverfolgen.
+> Ein Projekt von **Team CMSLPD**.
 
 ![Version](https://badgen.net/badge/version/1.0.0/blue)
 ![Lizenz](https://badgen.net/badge/license/MIT/green)
@@ -700,7 +705,7 @@ ac_ProjectSeks/
 │   ├── Sims.Logging/              # Redis-Logger
 │   └── Web/                       # React-Frontend + nginx
 ├── tests/                         # xUnit-Testprojekte
-├── docs/                          # Abstimmungs- und Übergabedokumente
+├── docs/                          # Abstimmungs- und Übergabedokumente, Logo (docs/assets)
 └── Zusatz/                        # Sicherheitsbericht, Test-SBOM
 ```
 
