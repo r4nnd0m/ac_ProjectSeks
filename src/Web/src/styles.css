@@ -1318,6 +1318,15 @@ button:disabled {
   margin-bottom: var(--spacing-xl);
 }
 
+.login-card .brand-logo {
+  display: block;
+  margin: 0 auto var(--spacing-xs);
+}
+
+.brand-logo {
+  display: block;
+}
+
 .login-card .hint {
   color: var(--color-text-muted);
   margin-bottom: var(--spacing-lg);

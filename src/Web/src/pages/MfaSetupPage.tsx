@@ -11,6 +11,7 @@ import { ErrorBox, Field, Spinner } from '../components/ui';
 import { ApiError } from '../api/http';
 import { DEMO_MFA_CODE } from '../api/mock/db';
 import type { MfaSetupDto } from '../types';
+import { BrandLogo } from '../components/BrandLogo';
 
 export function MfaSetupPage() {
   const { token, user, markMfaEnabled } = useAuth();
@@ -48,7 +49,7 @@ export function MfaSetupPage() {
       <div className="login-page">
         <div className="login-card card">
           <h1 className="brand-title">
-            <span>🔒</span> SIMS
+            <BrandLogo size={96} />
           </h1>
           <div className="noticebox" role="status">
             Für dein Konto ist die Zwei-Faktor-Anmeldung bereits aktiv.
@@ -63,7 +64,7 @@ export function MfaSetupPage() {
       <div className="login-page">
         <div className="login-card card">
           <h1 className="brand-title">
-            <span>🔒</span> SIMS
+            <BrandLogo size={96} />
           </h1>
           <div className="noticebox" role="status">
             Fertig! Bei der nächsten Anmeldung verlangt SIMS zusätzlich zum Passwort einen Einmalcode.
@@ -93,7 +94,7 @@ export function MfaSetupPage() {
     <div className="login-page">
       <div className="login-card card">
         <h1 className="brand-title">
-          <span>🔒</span> SIMS
+          <BrandLogo size={96} />
         </h1>
         <p className="brand-sub">Security Incident Management System</p>
         <p className="hint">

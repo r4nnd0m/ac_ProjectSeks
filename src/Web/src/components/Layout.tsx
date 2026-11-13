@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthContext';
 import { simsConfig, USE_MOCKS } from '../config';
 import { DemoBadge } from './ui';
 import { ThemeToggle } from './ThemeToggle';
+import { BrandLogo } from './BrandLogo';
 
 export function Layout() {
   const { user, logout } = useAuth();
@@ -17,7 +18,7 @@ export function Layout() {
       <header className="topbar">
         <div className="brand">
           <NavLink to="/dashboard" className="brand-title">
-            <span>🔒</span> SIMS
+            <BrandLogo size={40} />
           </NavLink>
           <span className="brand-sub">Security Incident Management System</span>
         </div>

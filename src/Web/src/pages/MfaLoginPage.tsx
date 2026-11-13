@@ -5,6 +5,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { describeError } from '../api/http';
 import { Field } from '../components/ui';
+import { BrandLogo } from '../components/BrandLogo';
 
 export function MfaLoginPage() {
   const { pendingMfaToken, verifyMfa } = useAuth();
@@ -33,7 +34,7 @@ export function MfaLoginPage() {
     <div className="login-page">
       <div className="login-card card">
         <h1 className="brand-title">
-          <span>🔒</span> SIMS
+          <BrandLogo size={96} />
         </h1>
         <p className="brand-sub">Security Incident Management System</p>
         <p className="hint">

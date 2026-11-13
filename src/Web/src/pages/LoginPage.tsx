@@ -8,6 +8,7 @@ import { describeError } from '../api/http';
 import { USE_MOCKS } from '../config';
 import { DEMO_MFA_CODE, DEMO_PASSWORD } from '../api/mock/db';
 import { Field } from '../components/ui';
+import { BrandLogo } from '../components/BrandLogo';
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -35,7 +36,7 @@ export function LoginPage() {
     <div className="login-page">
       <div className="login-card card">
         <h1 className="brand-title">
-          <span>🔒</span> SIMS
+          <BrandLogo size={96} />
         </h1>
         <p className="brand-sub">Security Incident Management System</p>
         <p className="hint">
