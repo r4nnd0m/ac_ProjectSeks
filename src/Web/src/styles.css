@@ -27,6 +27,7 @@
   --severity-medium-bg: #FFF9D6;
   --severity-low: #8993A4;
   --severity-low-bg: #F1F2F4;
+  --severity-row-text: #1b1f24;
   
   /* Farben - Neutrale (Light Mode) */
   --color-text: #1b1f24;
@@ -90,6 +91,7 @@
   --severity-medium-bg: #4D4A12;
   --severity-low: #8993A4;
   --severity-low-bg: #2E333B;
+  --severity-row-text: #ffffff;
   
   /* Farben - Neutrale (Dark Mode) */
   --color-text: #e6e8eb;
@@ -394,25 +396,10 @@ table tbody tr .sev-Low {
 }
 
 /* Schweregrad-spezifische Textfarben (für nicht-badge Text) */
-table tbody tr.sev-Critical td,
-table tbody tr.sev-Critical td a,
-table tbody tr.sev-Critical .assignee-not-assigned {
-  color: #ffffff;
-}
-table tbody tr.sev-High td,
-table tbody tr.sev-High td a,
-table tbody tr.sev-High .assignee-not-assigned {
-  color: #ffffff;
-}
-table tbody tr.sev-Medium td,
-table tbody tr.sev-Medium td a,
-table tbody tr.sev-Medium .assignee-not-assigned {
-  color: #333333;
-}
-table tbody tr.sev-Low td,
-table tbody tr.sev-Low td a,
-table tbody tr.sev-Low .assignee-not-assigned {
-  color: #ffffff;
+table tbody tr[class^="sev-"] td,
+table tbody tr[class^="sev-"] td a,
+table tbody tr[class^="sev-"] .assignee-not-assigned {
+  color: var(--severity-row-text);
 }
 
 /* Gedämpfte Texte in Tabellenzeilen */
