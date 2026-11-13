@@ -7,54 +7,36 @@ type Theme = 'light' | 'dark' | 'system';
 
 const THEME_STORAGE_KEY = 'sims-theme';
 
+function readStoredTheme(): Theme {
+  const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+  return stored === 'light' || stored === 'dark' ? stored : 'system';
+}
+
+function applyTheme(selected: Theme) {
+  const isDark =
+    selected === 'dark' ||
+    (selected === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+}
+
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>('system');
-  const [mounted, setMounted] = useState(false);
+  // Direkt mit dem gespeicherten Wert starten, sonst überschreibt der erste Render das Theme.
+  const [theme, setTheme] = useState<Theme>(readStoredTheme);
 
-  // Initialen Theme-Wert laden und auf html-Element setzen
   useEffect(() => {
-    const stored = window.localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
-    const initial = stored ?? 'system';
-    setTheme(initial);
-    setMounted(true);
-    applyTheme(initial);
-  }, []);
-
-  // Reagiere auf System-Änderungen, wenn 'system' ausgewählt ist
-  useEffect(() => {
+    applyTheme(theme);
     if (theme !== 'system') return;
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = () => {
-      applyTheme('system');
-    };
-
+    const handleChange = () => applyTheme('system');
     mediaQuery.addEventListener('change', handleChange);
-    applyTheme('system');
-
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, [theme]);
 
-  const applyTheme = (selected: Theme) => {
-    const html = document.documentElement;
-    let isDark = false;
-
-    if (selected === 'dark') {
-      isDark = true;
-    } else if (selected === 'system') {
-      isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-
-    html.setAttribute('data-theme', isDark ? 'dark' : 'light');
-  };
-
   const setAndSaveTheme = (newTheme: Theme) => {
-    setTheme(newTheme);
     window.localStorage.setItem(THEME_STORAGE_KEY, newTheme);
-    applyTheme(newTheme);
+    setTheme(newTheme);
   };
-
-  if (!mounted) return null;
 
   const icon = theme === 'light' ? '☀️' : theme === 'dark' ? '🌙' : '💻';
 
