@@ -21,7 +21,7 @@ public sealed class OsvClient(HttpClient http, ILogger<OsvClient> logger) : IOsv
             var pairs = await QueryBatchesAsync(components, ct);
             var details = new ConcurrentDictionary<string, OsvVuln>(StringComparer.Ordinal);
 
-            // Gleiche Schwachstelle: Details nur einmal, Zuordnung zu jeder Komponente behalten.
+            // Details pro Schwachstelle nur einmal laden, auch wenn mehrere Komponenten betroffen sind.
             await Parallel.ForEachAsync(pairs.Select(p => p.VulnId).Distinct(StringComparer.Ordinal),
                 new ParallelOptions { MaxDegreeOfParallelism = 5, CancellationToken = ct },
                 async (id, token) =>
@@ -48,7 +48,6 @@ public sealed class OsvClient(HttpClient http, ILogger<OsvClient> logger) : IOsv
                                    or OperationCanceledException or ExecutionRejectedException)
         {
             ct.ThrowIfCancellationRequested();
-            // Keine Antwortinhalte oder fremden Exception-Texte in Logs übernehmen.
             logger.LogWarning("OSV-Abfrage fehlgeschlagen ({ErrorType}). Kein vollständiges Ergebnis verfügbar.",
                 ex.GetType().Name);
             throw new OsvUnavailableException("OSV ist nicht erreichbar oder hat keine auswertbare Antwort geliefert.");
@@ -74,7 +73,7 @@ public sealed class OsvClient(HttpClient http, ILogger<OsvClient> logger) : IOsv
             {
                 var result = batch.Results[i]
                     ?? throw new OsvUnavailableException("Ein OSV-Ergebnis fehlt.");
-                // MVP laut D2: weitere Seiten niemals still ignorieren.
+                // Paging wird nicht unterstützt, also lieber abbrechen als Funde verlieren.
                 if (!string.IsNullOrEmpty(result.NextPageToken))
                     throw new OsvUnavailableException("OSV liefert weitere Ergebnisseiten. Die Abfrage ist unvollständig.");
 
@@ -94,7 +93,7 @@ public sealed class OsvClient(HttpClient http, ILogger<OsvClient> logger) : IOsv
 
     private static OsvFinding MapFinding(Guid componentId, OsvVuln vuln)
     {
-        var id = vuln.Id!; // Beim Einlesen mit der angefragten Kennung abgeglichen.
+        var id = vuln.Id!;
         var cve = id.StartsWith("CVE-", StringComparison.OrdinalIgnoreCase)
             ? id
             : vuln.Aliases?.FirstOrDefault(a => a?.StartsWith("CVE-", StringComparison.OrdinalIgnoreCase) == true);
@@ -109,7 +108,7 @@ public sealed class OsvClient(HttpClient http, ILogger<OsvClient> logger) : IOsv
         var summary = vuln.Summary;
         if (summary?.Length > 500)
         {
-            // Kein halbes Unicode-Zeichen am Schnittpunkt hinterlassen.
+            // Surrogatpaar nicht in der Mitte abschneiden
             var length = char.IsHighSurrogate(summary[499]) ? 499 : 500;
             summary = summary[..length];
         }

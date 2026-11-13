@@ -6,7 +6,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { describeError } from '../api/http';
 import { USE_MOCKS } from '../config';
+import { DEMO_MFA_CODE, DEMO_PASSWORD } from '../api/mock/db';
 import { Field } from '../components/ui';
+import { BrandLogo } from '../components/BrandLogo';
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -22,7 +24,7 @@ export function LoginPage() {
     setError(null);
     try {
       const result = await login(email, password);
-      navigate(result.mfaRequired ? '/mfa' : '/projects');
+      navigate(result.mfaRequired ? '/mfa' : '/dashboard');
     } catch (err) {
       setError(describeError(err));
     } finally {
@@ -31,9 +33,12 @@ export function LoginPage() {
   }
 
   return (
-    <div className="loginbox">
-      <div className="card">
-        <h1>Anmeldung</h1>
+    <div className="login-page">
+      <div className="login-card card">
+        <h1 className="brand-title">
+          <BrandLogo size={96} />
+        </h1>
+        <p className="brand-sub">Security Incident Management System</p>
         <p className="hint">
           Neu bei SIMS? <Link to="/news">Öffentliche Meldungen</Link> sind auch ohne Anmeldung lesbar.
         </p>
@@ -57,14 +62,18 @@ export function LoginPage() {
             />
           </Field>
           {error ? <div className="errorbox" role="alert">{error}</div> : null}
-          <button type="submit" disabled={busy}>{busy ? 'Anmeldung läuft…' : 'Anmelden'}</button>
+          <div style={{ marginTop: 'var(--spacing-md)' }}>
+            <button type="submit" disabled={busy}>
+              {busy ? 'Anmeldung läuft…' : 'Anmelden'}
+            </button>
+          </div>
         </form>
         {USE_MOCKS ? (
           <p className="hint">
-            <strong>Demo-Modus:</strong> erfundene Testkonten (Passwort jeweils <code>demo1234</code>):{' '}
+            <strong>Demo-Modus:</strong> erfundene Testkonten (Passwort jeweils <code>{DEMO_PASSWORD}</code>):{' '}
             admin@sims.example (Admin), lead@sims.example (Lead), dev@sims.example (Developer, Team Blau),{' '}
             dev2@sims.example (Developer, Team Grün). Konten mit 2FA fordern den Einmalcode{' '}
-            <code>123456</code> an.
+            <code>{DEMO_MFA_CODE}</code> an.
           </p>
         ) : null}
       </div>

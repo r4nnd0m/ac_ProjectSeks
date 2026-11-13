@@ -6,9 +6,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { scanApi } from '../api/scanApi';
 import { describeError } from '../api/http';
-import { EmptyState, ErrorBox, Field, Spinner, StatusBadge } from '../components/ui';
+import { EmptyState, ErrorBox, Field, Spinner, StatusBadge, useToast } from '../components/ui';
+import { verdictLabels } from '../utils';
 import { formatDateTime, formatDate } from '../utils';
-import type { ProjectDto, ScanListItemDto } from '../types';
+import type { ProjectDto, ScanSummaryDto } from '../types';
 
 const MAX_SBOM_BYTES = 5 * 1024 * 1024; // 5 MB (Auftrag E3)
 
@@ -34,10 +35,11 @@ export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { token } = useAuth();
   const navigate = useNavigate();
+  const { addToast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [project, setProject] = useState<ProjectDto | null>(null);
-  const [scans, setScans] = useState<ScanListItemDto[] | null>(null);
+  const [scans, setScans] = useState<ScanSummaryDto[] | null>(null);
   const [error, setError] = useState<unknown>(null);
 
   const [version, setVersion] = useState('');
@@ -87,13 +89,17 @@ export function ProjectDetailPage() {
       return;
     }
     setUploading(true);
+    let uploadError: string | null = null;
     try {
-      const scan = await scanApi.createScan(token, id, version.trim(), sbomText);
-      navigate(`/scans/${scan.id}`);
+      const created = await scanApi.createScan(token, id, version.trim(), sbomText);
+      navigate(`/scans/${created.scanId}`);
     } catch (err) {
-      setUploadError(describeError(err));
+      uploadError = describeError(err);
+      setUploadError(uploadError);
+      addToast('Fehler beim Upload', 'error');
     } finally {
       setUploading(false);
+      if (!uploadError) addToast('Scan gestartet', 'success');
     }
   }
 
@@ -102,7 +108,7 @@ export function ProjectDetailPage() {
       <h1>{project ? `Projekt: ${project.name}` : 'Projekt'}</h1>
       {project ? (
         <p className="hint">
-          Team: {project.teamName} · Angelegt am {formatDate(project.createdAt)} · Projektkennung{' '}
+          Angelegt am {formatDate(project.createdAt)} · Projektkennung{' '}
           <code>{project.id}</code>
         </p>
       ) : null}
@@ -113,45 +119,45 @@ export function ProjectDetailPage() {
       {!scans ? <Spinner label="Scans werden geladen…" /> : null}
       {scans && scans.length === 0 ? <EmptyState text="Für dieses Projekt wurde noch nichts gescannt." /> : null}
       {scans && scans.length > 0 ? (
-        <table>
-          <thead>
-            <tr>
-              <th>Scan</th>
-              <th>Version</th>
-              <th>Status</th>
-              <th>Urteil</th>
-              <th>Erstellt</th>
-            </tr>
-          </thead>
-          <tbody>
-            {scans.map((s) => (
-              <tr key={s.id}>
-                <td>
-                  <Link to={`/scans/${s.id}`}>{s.id}</Link>
-                </td>
-                <td>{s.version}</td>
-                <td><StatusBadge status={s.status} /></td>
-                <td>{s.verdict ?? <span className="hint">–</span>}</td>
-                <td>{formatDateTime(s.createdAt)}</td>
+        <div className="card">
+          <table>
+            <thead>
+              <tr>
+                <th>Version</th>
+                <th>Status</th>
+                <th>Urteil</th>
+                <th>Erstellt</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {scans.map((s) => (
+                <tr key={s.id}>
+                  <td>
+                    <Link to={`/scans/${s.id}`}>{s.version}</Link>
+                  </td>
+                  <td><StatusBadge status={s.status} /></td>
+                  <td>{s.verdict ? verdictLabels[s.verdict] : <span className="hint">–</span>}</td>
+                  <td>{formatDateTime(s.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : null}
 
       <div className="card">
         <h2>SBOM hochladen und Scan starten</h2>
         <p className="hint">
-          CycloneDX-JSON (Format 1.5), maximal 5 MB. Das JSON wird unverändert an{' '}
+          CycloneDX-JSON (Format 1.5), maximal 5 MB. Das JSON wird unverändert an
           <code>POST /projects/{'{id}'}/scans?version=…</code> gesendet.
           {' '}
-          <button type="button" className="linkbtn" onClick={() => { setSbomText(EXAMPLE_SBOM); setSbomFileName('beispiel-sbom.json'); setUploadError(null); }}>
+          <button type="button" className="link-btn" onClick={() => { setSbomText(EXAMPLE_SBOM); setSbomFileName('beispiel-sbom.json'); setUploadError(null); }}>
             Beispiel-SBOM einfügen
           </button>
         </p>
         <form onSubmit={onUpload}>
           <Field label="Versionsangabe" hint="Zum Beispiel 1.4.0 – erscheint später im Scan.">
-            <input value={version} onChange={(e) => setVersion(e.target.value)} placeholder="1.0.0" required />
+            <input value={version} onChange={(e) => setVersion(e.target.value)} placeholder="1.0.0" required maxLength={50} />
           </Field>
           <Field label="CycloneDX-Datei" hint="Alternativ kannst du den JSON-Inhalt unten direkt einfügen.">
             <input
@@ -166,10 +172,14 @@ export function ProjectDetailPage() {
           </Field>
           {sbomFileName ? <p className="hint">Geladene Datei: {sbomFileName}</p> : null}
           {uploadError ? <div className="errorbox" role="alert">{uploadError}</div> : null}
-          <button type="submit" disabled={uploading || !sbomText.trim()}>
-            {uploading ? 'Upload läuft…' : 'Scan starten'}
-          </button>{' '}
-          <button type="button" className="secondary" onClick={reload}>Aktualisieren</button>
+          <div style={{ display: 'flex', gap: 'var(--spacing-sm)', marginTop: 'var(--spacing-md)' }}>
+            <button type="submit" disabled={uploading || !sbomText.trim()}>
+              {uploading ? 'Upload läuft…' : 'Scan starten'}
+            </button>
+            <button type="button" className="secondary" onClick={() => { reload(); addToast('Scans aktualisiert', 'info'); }}>
+              Aktualisieren
+            </button>
+          </div>
         </form>
       </div>
     </div>

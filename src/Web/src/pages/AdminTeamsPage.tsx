@@ -1,8 +1,8 @@
-// E4: Teams anzeigen und anlegen (nur Admins).
+// E4: Teams anzeigen (GET /teams) und anlegen (POST /teams, 409 bei doppeltem Namen). Nur Admins, Auth-API.
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '../auth/AuthContext';
-import { scanApi } from '../api/scanApi';
+import { adminApi } from '../api/adminApi';
 import { AdminTabs } from '../components/AdminTabs';
 import { EmptyState, ErrorBox, Field, Spinner } from '../components/ui';
 import type { TeamDto } from '../types';
@@ -18,7 +18,7 @@ export function AdminTeamsPage() {
   const reload = useCallback(() => {
     if (!token) return;
     setError(null);
-    scanApi.listTeams(token).then(setTeams).catch(setError);
+    adminApi.listTeams(token).then(setTeams).catch(setError);
   }, [token]);
 
   useEffect(reload, [reload]);
@@ -29,7 +29,7 @@ export function AdminTeamsPage() {
     setBusy(true);
     setCreateError(null);
     try {
-      await scanApi.createTeam(token, name.trim());
+      await adminApi.createTeam(token, name.trim());
       setName('');
       reload();
     } catch (err) {
@@ -47,22 +47,24 @@ export function AdminTeamsPage() {
       {!teams && !error ? <Spinner label="Teams werden geladen…" /> : null}
       {teams && teams.length === 0 ? <EmptyState text="Noch keine Teams." /> : null}
       {teams && teams.length > 0 ? (
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Kennung</th>
-            </tr>
-          </thead>
-          <tbody>
-            {teams.map((t) => (
-              <tr key={t.id}>
-                <td>{t.name}</td>
-                <td><code>{t.id}</code></td>
+        <div className="card">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Kennung</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {teams.map((t) => (
+                <tr key={t.id}>
+                  <td>{t.name}</td>
+                  <td><code>{t.id}</code></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : null}
 
       <div className="card">
@@ -72,9 +74,11 @@ export function AdminTeamsPage() {
             <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={100} />
           </Field>
           {createError ? <ErrorBox error={createError} /> : null}
-          <button type="submit" disabled={busy || !name.trim()}>
-            {busy ? 'Wird angelegt…' : 'Team anlegen'}
-          </button>
+          <div style={{ marginTop: 'var(--spacing-md)' }}>
+            <button type="submit" disabled={busy || !name.trim()}>
+              {busy ? 'Wird angelegt…' : 'Team anlegen'}
+            </button>
+          </div>
         </form>
       </div>
     </div>

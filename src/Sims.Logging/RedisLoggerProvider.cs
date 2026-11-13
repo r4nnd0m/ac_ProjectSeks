@@ -3,7 +3,6 @@ using StackExchange.Redis;
 
 namespace Sims.Logging;
 
-/// <summary>Stellt Redis-Logger für die ILogger-Kategorien einer Anwendung bereit.</summary>
 public sealed class RedisLoggerProvider : ILoggerProvider
 {
     private readonly IConnectionMultiplexer _multiplexer;
@@ -19,8 +18,8 @@ public sealed class RedisLoggerProvider : ILoggerProvider
 
     public ILogger CreateLogger(string categoryName) => new RedisLogger(_multiplexer, _serviceName);
 
+    // Die Redis-Verbindung gehört der Anwendung und wird dort geschlossen.
     public void Dispose()
     {
-        // Die aufrufende Anwendung besitzt die geteilte Redis-Verbindung.
     }
 }

@@ -9,13 +9,14 @@ using ScanApi.Services;
 using Sims.Contracts;
 using Sims.Shared.Audit;
 using Sims.Shared.Data;
+using Sims.Shared.Extensions;
 using StackExchange.Redis;
 
 namespace ScanApi;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
 
@@ -25,9 +26,7 @@ public class Program
         });
 
         builder.Services.AddOpenApi();
-        builder.Services.AddSimsSecurity();
-        builder.Services.AddScoped<AuditService>();
-        builder.Services.AddScoped<IAuditQueryService, AuditQueryService>();
+        builder.Services.AddSimsSecurity(builder.Configuration);
 
         var redisConnection = builder.Configuration.GetConnectionString("Redis");
         if (!string.IsNullOrWhiteSpace(redisConnection))
@@ -37,7 +36,9 @@ public class Program
             builder.Services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisOptions));
         }
 
-        var jwtKey = builder.Configuration["Jwt:Key"] ?? "12345678901234567890123456789012";
+        var jwtKey = builder.Configuration["Jwt:Key"];
+        if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 32)
+            throw new InvalidOperationException("Jwt:Key fehlt oder ist kürzer als 32 Zeichen.");
         var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "sims-auth";
         var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "sims-api";
 
@@ -54,7 +55,7 @@ public class Program
                     ValidateAudience = true,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
-                    ClockSkew = TimeSpan.FromSeconds(30),
+                    ClockSkew = AccessTokenPolicy.ClockSkew,
                     RoleClaimType = ClaimNames.Role,
                     NameClaimType = ClaimNames.Name
                 };
@@ -64,9 +65,9 @@ public class Program
                     OnTokenValidated = async context =>
                     {
                         var jti = context.Principal?.FindFirst(ClaimNames.Jti)?.Value;
-                        if (string.IsNullOrWhiteSpace(jti))
+                        if (string.IsNullOrWhiteSpace(jti) || !AccessTokenPolicy.HasUserAndTeam(context.Principal))
                         {
-                            context.Fail("Token ohne jti.");
+                            context.Fail("Unvollständiges Zugriffstoken.");
                             return;
                         }
 
@@ -79,7 +80,7 @@ public class Program
                                 return;
                             }
 
-                            var value = await redis.GetDatabase().KeyExistsAsync($"auth:blacklist:{jti}");
+                            var value = await redis.GetDatabase().KeyExistsAsync(AccessTokenPolicy.RevocationKey(jti));
                             if (value)
                             {
                                 context.Fail("Token wurde widerrufen.");
@@ -99,20 +100,27 @@ public class Program
             options.AddPolicy(Policies.MfaRequired, policy => policy.RequireClaim(ClaimNames.Mfa, "true"));
         });
 
-        var connectionString = builder.Configuration.GetConnectionString("Sims") ?? "Server=localhost,1433;Database=sims;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True";
-        builder.Services.AddDbContext<SimsDbContext>(options =>
-        {
-            options.UseSqlServer(connectionString, sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "scan"));
-        });
+        var connectionString = builder.Configuration.GetConnectionString("Sims");
+        if (string.IsNullOrWhiteSpace(connectionString))
+            throw new InvalidOperationException("ConnectionStrings:Sims fehlt.");
+        builder.Services.AddSimsDatabase(connectionString);
 
         builder.Services.AddScoped<IProjectService, ProjectService>();
         builder.Services.AddScoped<ISbomParser, CycloneDxParser>();
         builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddEscalation(builder.Configuration);
         builder.Services.AddScoped<ITicketService, TicketService>();
         builder.Services.AddScoped<AuditService>();
         builder.Services.AddScoped<IAuditQueryService, AuditQueryService>();
 
         var app = builder.Build();
+
+        if (app.Configuration.GetValue<bool>("Migrations:Run"))
+        {
+            await using var scope = app.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<SimsDbContext>();
+            await db.Database.MigrateAsync();
+        }
 
         if (app.Environment.IsDevelopment())
         {
@@ -127,7 +135,6 @@ public class Program
         app.UseAuthorization();
         app.MapControllers();
 
-        app.Run();
+        await app.RunAsync();
     }
 }
-

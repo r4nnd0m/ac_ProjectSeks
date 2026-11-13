@@ -13,12 +13,14 @@ public static class DbSeeder
         RoleManager<IdentityRole<Guid>> roleManager,
         IConfiguration config)
     {
-        string[] roleNames = { Roles.Developer, Roles.Lead, Roles.Admin };
-        foreach (string role in roleNames)
+        await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+        foreach (string role in Roles.All)
         {
             if (!await roleManager.RoleExistsAsync(role))
             {
-                await roleManager.CreateAsync(new IdentityRole<Guid>(role));
+                var created = await roleManager.CreateAsync(new IdentityRole<Guid>(role));
+                if (!created.Succeeded)
+                    throw new InvalidOperationException($"Rolle {role} konnte nicht angelegt werden.");
             }
         }
 
@@ -27,7 +29,7 @@ public static class DbSeeder
         {
             team = new Team { Name = "Default" };
             db.Teams.Add(team);
-            await db.SaveChangesAsync(); 
+            await db.SaveChangesAsync();
         }
 
         string? email = config["Admin:Email"];
@@ -46,10 +48,14 @@ public static class DbSeeder
             IdentityResult result = await userManager.CreateAsync(admin, password);
             if (!result.Succeeded)
             {
-                throw new Exception("Admin konnte nicht angelegt werden!");
+                throw new InvalidOperationException("Admin konnte nicht angelegt werden.");
             }
 
-            await userManager.AddToRoleAsync(admin, Roles.Admin);
+            var assigned = await userManager.AddToRoleAsync(admin, Roles.Admin);
+            if (!assigned.Succeeded)
+                throw new InvalidOperationException("Admin-Rolle konnte nicht zugewiesen werden.");
         }
+
+        await transaction.CommitAsync();
     }
 }

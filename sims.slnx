@@ -8,4 +8,17 @@
     <Project Path="src/Sims.Shared/Sims.Shared.csproj" />
     <Project Path="src/Worker/Worker.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Sims.Logging.Tests/Sims.Logging.Tests.csproj" />
+    <Project Path="tests/Sims.News.Api.Tests/Sims.News.Api.Tests.csproj" />
+    <Project Path="tests/Sims.Shared.Tests/Sims.Shared.Tests.csproj" />
+    <Project Path="tests/Sims.Worker.Tests/Sims.Worker.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="docker-compose.yml" />
+    <File Path=".env.example" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="README.md" />
+  </Folder>
 </Solution>

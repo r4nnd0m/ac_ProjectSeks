@@ -33,21 +33,7 @@ public class JwtTokenService : ITokenService
             claims.Add(new Claim(ClaimNames.Mfa, "true"));
         }
 
-        SymmetricSecurityKey key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.Key));
-        SigningCredentials credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-        SecurityTokenDescriptor descriptor = new SecurityTokenDescriptor
-        {
-            Issuer = _options.Issuer,
-            Audience = _options.Audience,
-            Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.UtcNow.AddMinutes(_options.ExpiresMinutes),
-            SigningCredentials = credentials
-        };
-
-        JsonWebTokenHandler handler = new JsonWebTokenHandler();
-        string token = handler.CreateToken(descriptor);
-        return token;
+        return Sign(claims, _options.Audience, _options.ExpiresMinutes);
     }
 
     public string CreateMfaToken(ApplicationUser user)
@@ -57,21 +43,21 @@ public class JwtTokenService : ITokenService
             new Claim(ClaimNames.Sub, user.Id.ToString()),
             new Claim(MfaTokenConstants.PurposeClaim, MfaTokenConstants.PurposeValue)
         };
-        
-        SymmetricSecurityKey key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.Key));
-        SigningCredentials credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        SecurityTokenDescriptor descriptor = new SecurityTokenDescriptor
+        return Sign(claims, MfaTokenConstants.Audience, 5);
+    }
+
+    private string Sign(IEnumerable<Claim> claims, string audience, int lifetimeMinutes)
+    {
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.Key));
+        var descriptor = new SecurityTokenDescriptor
         {
             Issuer = _options.Issuer,
-            Audience = MfaTokenConstants.Audience,
+            Audience = audience,
             Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.UtcNow.AddMinutes(5),
-            SigningCredentials = credentials
+            Expires = DateTime.UtcNow.AddMinutes(lifetimeMinutes),
+            SigningCredentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256)
         };
-
-        JsonWebTokenHandler handler = new JsonWebTokenHandler();
-        string token = handler.CreateToken(descriptor);
-        return token;
+        return new JsonWebTokenHandler().CreateToken(descriptor);
     }
 }

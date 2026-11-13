@@ -1,0 +1,53 @@
+SIMS – Erwartete Funde für laravel-7.12.0.cdx.json
+Referenz: OSV-Abfrage vom 13.11.2026, Schweregrade wie im SIMS-Worker.
+Datei: https://github.com/CycloneDX/bom-examples/blob/7d9172d00c88c05a8f1ccb90589d111870fc9d86/SBOM/laravel-7.12.0/bom.1.4.json
+62 Komponenten, 13 betroffene Komponenten, 44 Funde.
+14 Hoch, 1 Kritisch, 25 Mittel, 4 Niedrig
+
+
+Paket             Version Schweregrad CVE             OSV
+-----             ------- ----------- ---             ---
+carbon            2.63.0  Mittel      CVE-2025-22145  GHSA-j3f9-p6hm-5w6q
+commonmark        1.6.7   Mittel      CVE-2026-71478  GHSA-29pj-957v-52mc
+commonmark        1.6.7   Hoch        CVE-2026-71488  GHSA-2q4p-g7hv-5rgv
+commonmark        1.6.7   Mittel      CVE-2025-46734  GHSA-3527-qv2q-pfvx
+commonmark        1.6.7   Hoch        CVE-2026-86428  GHSA-8rr7-cvq3-gmfh
+commonmark        1.6.7   Mittel      CVE-2026-105829 GHSA-97jj-33gv-5xf9
+commonmark        1.6.7   Hoch        CVE-2024-58382  GHSA-c2pc-g5qf-rfrf
+commonmark        1.6.7   Hoch                        GHSA-g2gp-3wwq-f4ph
+commonmark        1.6.7   Hoch        CVE-2026-86430  GHSA-j8pm-gj4c-rq4x
+commonmark        1.6.7   Hoch                        GHSA-jfm3-95jq-q3rf
+commonmark        1.6.7   Hoch        CVE-2026-86429  GHSA-jjv6-8j6v-6j52
+flysystem         1.1.10  Niedrig     CVE-2026-102601 GHSA-cxf4-7mrp-vvpr
+framework         v7.30.6 Hoch        CVE-2026-48019  GHSA-5vg9-5847-vvmq
+framework         v7.30.6 Mittel      CVE-2025-27515  GHSA-78fx-h6xr-vch4
+framework         v7.30.6 Mittel                      GHSA-crmm-hgp2-wgrp
+framework         v7.30.6 Kritisch    CVE-2026-114509 GHSA-f9x3-7vq9-cph6
+framework         v7.30.6 Hoch        CVE-2024-52301  GHSA-gv7v-rgg6-548h
+framework         v7.30.6 Niedrig     CVE-2026-102279 GHSA-jh5r-qr3c-85q8
+guzzle            6.5.8   Mittel      CVE-2026-67339  GHSA-94pj-82f3-465w
+guzzle            6.5.8   Mittel      CVE-2026-55767  GHSA-cwxw-98qj-8qjx
+guzzle            6.5.8   Mittel      CVE-2026-67353  GHSA-f283-ghqc-fg79
+guzzle            6.5.8   Mittel      CVE-2026-69245  GHSA-f7vp-7xgx-4w4r
+guzzle            6.5.8   Mittel      CVE-2026-59883  GHSA-g446-98w2-8p5w
+guzzle            6.5.8   Mittel      CVE-2026-67354  GHSA-h95v-h523-3mw8
+guzzle            6.5.8   Hoch        CVE-2026-69246  GHSA-v5mv-p594-2x33
+guzzle            6.5.8   Mittel      CVE-2026-67355  GHSA-wm3w-8rrp-j577
+guzzle            6.5.8   Mittel      CVE-2026-55568  GHSA-wpwq-4j6v-78m3
+http-foundation   v5.4.16 Hoch        CVE-2025-64500  GHSA-3rg7-wf37-54rm
+http-foundation   v5.4.16 Niedrig     CVE-2024-50345  GHSA-mrqx-rp3w-jpjp
+http-foundation   v5.4.16 Hoch        CVE-2026-108082 GHSA-r925-mgvr-h9cc
+http-kernel       v5.4.16 Mittel      CVE-2022-24894  GHSA-h7vf-5wrv-9fhv
+mime              v5.4.16 Hoch        CVE-2026-45067  GHSA-qpmx-3rfj-7rhv
+mime              v5.4.16 Mittel      CVE-2026-45070  GHSA-vqc8-7275-q272
+polyfill-intl-idn v1.27.0 Niedrig     CVE-2026-46644  GHSA-2xf4-cg6j-vhgq
+process           v5.4.11 Hoch        CVE-2024-51736  GHSA-qq5c-677p-737q
+process           v5.4.11 Mittel      CVE-2026-24739  GHSA-r39x-jcww-82v6
+psr7              1.9.0   Mittel      CVE-2026-48998  GHSA-34xg-wgjx-8xph
+psr7              1.9.0   Mittel      CVE-2026-59882  GHSA-c2w2-prh8-qm98
+psr7              1.9.0   Mittel      CVE-2026-49214  GHSA-hq7v-mx3g-29hw
+psr7              1.9.0   Mittel      CVE-2026-55766  GHSA-vm85-hxw5-5432
+psr7              1.9.0   Mittel      CVE-2023-29197  GHSA-wxmh-65f7-jcvw
+psysh             v0.11.9 Mittel      CVE-2026-25129  GHSA-4486-gxhx-5mg7
+routing           v5.4.15 Mittel      CVE-2026-45065  GHSA-72xp-p242-47p9
+routing           v5.4.15 Mittel      CVE-2026-48784  GHSA-h5x3-xfc9-m39h

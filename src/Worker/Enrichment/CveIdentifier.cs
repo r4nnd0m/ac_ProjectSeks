@@ -4,7 +4,7 @@ namespace Worker.Enrichment;
 
 internal static partial class CveIdentifier
 {
-    // 50 Zeichen entsprechen dem vorgesehenen CVE-Feld in B1.
+    // 50 = Länge der Cve-Spalte in der Datenbank
     internal static bool IsValid(string? value) =>
         value is { Length: <= 50 } && Pattern().IsMatch(value);
 

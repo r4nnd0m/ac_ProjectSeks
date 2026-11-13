@@ -2,10 +2,7 @@ namespace Worker.Osv;
 
 public interface IOsvClient
 {
-    /// <summary>
-    /// Liefert zugeordnete Funde; bei unvollständiger/fehlgeschlagener Abfrage
-    /// OsvUnavailableException. Ein angeforderter Abbruch bleibt ein Abbruch.
-    /// </summary>
+    // Wirft OsvUnavailableException, wenn kein vollständiges Ergebnis vorliegt.
     Task<IReadOnlyList<OsvFinding>> FindVulnerabilitiesAsync(
         IReadOnlyList<OsvComponent> components, CancellationToken ct);
 }

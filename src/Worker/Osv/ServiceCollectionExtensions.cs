@@ -7,8 +7,7 @@ public static class ServiceCollectionExtensions
         var client = services.AddHttpClient<IOsvClient, OsvClient>(http =>
             http.BaseAddress = new Uri("https://api.osv.dev/"));
 
-        // querybatch ist trotz POST eine reine Leseabfrage und darf wiederholt werden.
-        // Standard: Wiederholungen, Zeitlimits und Pause bei gehäuften Ausfällen.
+        // querybatch ist zwar POST, aber nur lesend und kann daher wiederholt werden.
         client.AddStandardResilienceHandler();
         return client;
     }

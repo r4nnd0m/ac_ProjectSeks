@@ -1,12 +1,11 @@
 namespace Worker.Scanning;
 
-// Normaler Host bleibt ausdrücklich ohne SQL, bis die echten Adapter eingebunden sind.
 internal sealed class UnconfiguredScanProcessor(ILogger<UnconfiguredScanProcessor> logger) : IScanProcessor
 {
     public Task ProcessPendingAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        logger.LogInformation("Scan-Platzhalter aktiv: Team-Adapter und Datenbank noch nicht angeschlossen. Keine Scan-Aufträge verarbeitet.");
+        logger.LogInformation("Scan-Verarbeitung pausiert. Sie benötigt ConnectionStrings:Sims sowie Regeln für Scanurteile und Tickets.");
         return Task.CompletedTask;
     }
 }
@@ -16,7 +15,7 @@ internal sealed class UnconfiguredScanRecovery(ILogger<UnconfiguredScanRecovery>
     public Task RecoverAsync(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        logger.LogInformation("Neustart-Platzhalter aktiv: Ohne Datenbankanschluss wurden keine Scans zurückgesetzt.");
+        logger.LogInformation("Neustartprüfung pausiert, bis die Scan-Verarbeitung aktiviert ist.");
         return Task.CompletedTask;
     }
 }

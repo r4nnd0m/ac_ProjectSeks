@@ -1,7 +1,6 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Sims.Contracts;
+using ScanApi.Extensions;
 using ScanApi.Models;
 using ScanApi.Services;
 
@@ -25,10 +24,7 @@ public class ProjectsController(IProjectService projectService) : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Name))
             return ValidationProblem();
 
-        var teamId = Guid.Parse(User.FindFirstValue(ClaimNames.TeamId)!);
-        var ownerId = Guid.Parse(User.FindFirstValue(ClaimNames.Sub)!);
-
-        var created = await projectService.CreateAsync(teamId, request.Name.Trim(), ownerId);
+        var created = await projectService.CreateAsync(User.GetTeamId(), request.Name.Trim(), User.GetUserId());
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 

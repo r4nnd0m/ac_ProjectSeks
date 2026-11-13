@@ -1,35 +1,47 @@
-// API-Client für die Scan-API (Port 8082): Projekte, Scans, Tickets,
-// Benutzerverwaltung, Teams und Audit.
-//
-// Durch die Abstimmungs-Dokumente BEKANNT (docs/worker/abstimmung):
-//   POST /projects/{id}/scans?version=…   (B2, liefert scanId, HTTP 202)
-//   GET  /scans/{id}                      (B5: status, verdict, finishedAt,
-//                                          errorMessage, findings)
-//   GET  /tickets/{id}                    (C2: status, escalationLevel,
-//                                          assignedRole, dueAt, assigneeName)
-//   POST /tickets/{id}/take               (C2: persönliche Übernahme)
-// PROVISORISCH (in den Dokumenten noch nicht festgelegt, siehe Hinweise):
-//   GET/POST /projects, GET /projects/{id}, GET /projects/{id}/scans,
-//   GET/POST /tickets, PUT /tickets/{id}, POST /tickets/{id}/close,
-//   POST /tickets/{id}/accept-risk, /users, /teams, /audit
+// API-Client für die Scan-API: Projekte, Scans, Tickets und Audit (E3/E4).
+// Routen laut ScanApi/Controllers:
+//   GET/POST /projects, GET /projects/{id}
+//   POST /projects/{id}/scans?version=…  (202 + scanId), GET /projects/{id}/scans
+//   GET /scans/{id}
+//   GET/POST /tickets, GET/PUT /tickets/{id}
+//   POST /tickets/{id}/take | /close | /accept-risk  (204, danach neu laden)
+//   GET /audit (paged, nur Admin)
 
 import { simsConfig, USE_MOCKS } from '../config';
 import type {
   AuditEntryDto,
+  CreateTicketInput,
   PagedDto,
   ProjectDto,
+  ScanCreatedDto,
   ScanDetailDto,
-  ScanListItemDto,
-  TeamDto,
-  TicketDetailDto,
-  TicketListItemDto,
+  ScanSummaryDto,
+  TicketDto,
   TicketQuery,
-  UserDto,
+  UpdateTicketInput,
 } from '../types';
 import { request } from './http';
 import * as mock from './mock/server';
 
 const base = () => simsConfig.scanUrl;
+const enc = encodeURIComponent;
+
+// Die Scan-API liefert höchstens 100 Einträge pro Seite.
+const MAX_PAGE_SIZE = 100;
+
+async function loadAllPages<T>(load: (page: number) => Promise<PagedDto<T>>): Promise<PagedDto<T>> {
+  const items: T[] = [];
+  let page = 1;
+  let total = 0;
+  do {
+    const res = await load(page);
+    items.push(...res.items);
+    total = res.totalCount;
+    if (res.items.length === 0) break;
+    page++;
+  } while (items.length < total);
+  return { items, page: 1, pageSize: items.length, totalCount: total };
+}
 
 export const scanApi = {
   // ------------------------------------------------------------ Projekte --
@@ -46,21 +58,18 @@ export const scanApi = {
 
   getProject(token: string, projectId: string): Promise<ProjectDto> {
     if (USE_MOCKS) return mock.mockGetProject(token, projectId);
-    return request<ProjectDto>(base(), `/projects/${encodeURIComponent(projectId)}`, { token });
+    return request<ProjectDto>(base(), `/projects/${enc(projectId)}`, { token });
   },
 
-  listProjectScans(token: string, projectId: string): Promise<ScanListItemDto[]> {
+  listProjectScans(token: string, projectId: string): Promise<ScanSummaryDto[]> {
     if (USE_MOCKS) return mock.mockListProjectScans(token, projectId);
-    return request<ScanListItemDto[]>(base(), `/projects/${encodeURIComponent(projectId)}/scans`, { token });
+    return request<ScanSummaryDto[]>(base(), `/projects/${enc(projectId)}/scans`, { token });
   },
 
-  /**
-   * B2: SBOM-Upload. Das CycloneDX-JSON geht unverändert als Body an
-   * POST /projects/{id}/scans?version=…; die Antwort enthält die scanId.
-   */
-  createScan(token: string, projectId: string, version: string, bomJson: string): Promise<ScanListItemDto> {
+  /** B2: Das CycloneDX-JSON geht unverändert als Body an die API. */
+  createScan(token: string, projectId: string, version: string, bomJson: string): Promise<ScanCreatedDto> {
     if (USE_MOCKS) return mock.mockCreateScan(token, projectId, version, bomJson);
-    return request<ScanListItemDto>(base(), `/projects/${encodeURIComponent(projectId)}/scans`, {
+    return request<ScanCreatedDto>(base(), `/projects/${enc(projectId)}/scans`, {
       method: 'POST',
       token,
       query: { version },
@@ -69,113 +78,74 @@ export const scanApi = {
     });
   },
 
-  // --------------------------------------------------------------- Scans --
-
   getScan(token: string, scanId: string): Promise<ScanDetailDto> {
     if (USE_MOCKS) return mock.mockGetScan(token, scanId);
-    return request<ScanDetailDto>(base(), `/scans/${encodeURIComponent(scanId)}`, { token });
+    return request<ScanDetailDto>(base(), `/scans/${enc(scanId)}`, { token });
   },
 
   // ------------------------------------------------------------- Tickets --
 
-  listTickets(token: string, query: TicketQuery): Promise<PagedDto<TicketListItemDto>> {
+  listTickets(token: string, query: TicketQuery): Promise<PagedDto<TicketDto>> {
     if (USE_MOCKS) return mock.mockListTickets(token, query);
-    return request<PagedDto<TicketListItemDto>>(base(), '/tickets', {
+    return request<PagedDto<TicketDto>>(base(), '/tickets', {
       token,
       query: {
         status: query.status,
         severity: query.severity,
-        mine: query.mine ? 'true' : undefined,
+        assignedToMe: query.assignedToMe ? 'true' : undefined,
         page: query.page,
         pageSize: query.pageSize,
       },
     });
   },
 
-  getTicket(token: string, ticketId: string): Promise<TicketDetailDto> {
+  listAllTickets(token: string, query: Omit<TicketQuery, 'page' | 'pageSize'> = {}): Promise<PagedDto<TicketDto>> {
+    return loadAllPages((page) => scanApi.listTickets(token, { ...query, page, pageSize: MAX_PAGE_SIZE }));
+  },
+
+  getTicket(token: string, ticketId: string): Promise<TicketDto> {
     if (USE_MOCKS) return mock.mockGetTicket(token, ticketId);
-    return request<TicketDetailDto>(base(), `/tickets/${encodeURIComponent(ticketId)}`, { token });
+    return request<TicketDto>(base(), `/tickets/${enc(ticketId)}`, { token });
   },
 
-  createTicket(
-    token: string,
-    input: { title: string; description: string; projectId: string; severity: TicketDetailDto['severity'] },
-  ): Promise<TicketDetailDto> {
+  createTicket(token: string, input: CreateTicketInput): Promise<TicketDto> {
     if (USE_MOCKS) return mock.mockCreateTicket(token, input);
-    return request<TicketDetailDto>(base(), '/tickets', { method: 'POST', token, json: input });
+    return request<TicketDto>(base(), '/tickets', { method: 'POST', token, json: input });
   },
 
-  updateTicket(
-    token: string,
-    ticketId: string,
-    patch: { title?: string; description?: string },
-  ): Promise<TicketDetailDto> {
-    if (USE_MOCKS) return mock.mockUpdateTicket(token, ticketId, patch);
-    return request<TicketDetailDto>(base(), `/tickets/${encodeURIComponent(ticketId)}`, {
-      method: 'PUT',
-      token,
-      json: patch,
-    });
+  updateTicket(token: string, ticketId: string, input: UpdateTicketInput): Promise<TicketDto> {
+    if (USE_MOCKS) return mock.mockUpdateTicket(token, ticketId, input);
+    return request<TicketDto>(base(), `/tickets/${enc(ticketId)}`, { method: 'PUT', token, json: input });
   },
 
-  takeTicket(token: string, ticketId: string): Promise<TicketDetailDto> {
+  takeTicket(token: string, ticketId: string): Promise<void> {
     if (USE_MOCKS) return mock.mockTakeTicket(token, ticketId);
-    return request<TicketDetailDto>(base(), `/tickets/${encodeURIComponent(ticketId)}/take`, {
-      method: 'POST',
-      token,
-    });
+    return request<void>(base(), `/tickets/${enc(ticketId)}/take`, { method: 'POST', token });
   },
 
-  closeTicket(token: string, ticketId: string): Promise<TicketDetailDto> {
+  closeTicket(token: string, ticketId: string): Promise<void> {
     if (USE_MOCKS) return mock.mockCloseTicket(token, ticketId);
-    return request<TicketDetailDto>(base(), `/tickets/${encodeURIComponent(ticketId)}/close`, {
+    return request<void>(base(), `/tickets/${enc(ticketId)}/close`, { method: 'POST', token });
+  },
+
+  /** Nur Admin mit MFA-Anmeldung; Begründung mindestens 20 Zeichen (AcceptRiskRequest.Justification). */
+  acceptRisk(token: string, ticketId: string, justification: string): Promise<void> {
+    if (USE_MOCKS) return mock.mockAcceptRisk(token, ticketId, justification);
+    return request<void>(base(), `/tickets/${enc(ticketId)}/accept-risk`, {
       method: 'POST',
       token,
+      json: { justification },
     });
   },
 
-  /** E4: nur Admin mit zweitem Faktor, reason mindestens 20 Zeichen. */
-  acceptRisk(token: string, ticketId: string, reason: string): Promise<TicketDetailDto> {
-    if (USE_MOCKS) return mock.mockAcceptRisk(token, ticketId, reason);
-    return request<TicketDetailDto>(base(), `/tickets/${encodeURIComponent(ticketId)}/accept-risk`, {
-      method: 'POST',
-      token,
-      json: { reason },
-    });
+  // --------------------------------------------------------------- Audit --
+
+  listAudit(token: string, page = 1, pageSize = 20): Promise<PagedDto<AuditEntryDto>> {
+    if (USE_MOCKS) return mock.mockListAudit(token, page, pageSize);
+    return request<PagedDto<AuditEntryDto>>(base(), '/audit', { token, query: { page, pageSize } });
   },
 
-  // --------------------------------------------------------- Verwaltung ---
-
-  listUsers(token: string): Promise<UserDto[]> {
-    if (USE_MOCKS) return mock.mockListUsers(token);
-    return request<UserDto[]>(base(), '/users', { token });
-  },
-
-  createUser(
-    token: string,
-    input: { email: string; name: string; role: UserDto['role']; teamId: string },
-  ): Promise<UserDto> {
-    if (USE_MOCKS) return mock.mockCreateUser(token, input);
-    return request<UserDto>(base(), '/users', { method: 'POST', token, json: input });
-  },
-
-  disableUser(token: string, userId: string): Promise<void> {
-    if (USE_MOCKS) return mock.mockDisableUser(token, userId);
-    return request<void>(base(), `/users/${encodeURIComponent(userId)}/disable`, { method: 'POST', token });
-  },
-
-  listTeams(token: string): Promise<TeamDto[]> {
-    if (USE_MOCKS) return mock.mockListTeams(token);
-    return request<TeamDto[]>(base(), '/teams', { token });
-  },
-
-  createTeam(token: string, name: string): Promise<TeamDto> {
-    if (USE_MOCKS) return mock.mockCreateTeam(token, name);
-    return request<TeamDto>(base(), '/teams', { method: 'POST', token, json: { name } });
-  },
-
-  listAudit(token: string): Promise<AuditEntryDto[]> {
-    if (USE_MOCKS) return mock.mockListAudit(token);
-    return request<AuditEntryDto[]>(base(), '/audit', { token });
+  listAllAudit(token: string): Promise<PagedDto<AuditEntryDto>> {
+    return loadAllPages((page) => scanApi.listAudit(token, page, MAX_PAGE_SIZE));
   },
 };

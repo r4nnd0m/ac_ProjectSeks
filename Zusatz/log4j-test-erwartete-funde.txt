@@ -1,0 +1,13 @@
+SIMS – Erwartete Funde für log4j-test.cdx.json
+OSV-Abfrage vom 13.11.2026 für pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1
+1 Komponente, 8 Funde. Erwartetes Urteil: NoGo – Freigabe gesperrt.
+
+Schweregrad  CVE             OSV
+Kritisch     CVE-2021-44228  GHSA-jfh8-c2jp-5v3q
+Kritisch     CVE-2021-45046  GHSA-7rjr-3q55-vv33
+Hoch         CVE-2021-45105  GHSA-p6xc-xr62-6r2g
+Mittel       CVE-2021-44832  GHSA-8489-44mv-ggj8
+Mittel       CVE-2025-68161  GHSA-vc5p-v9hr-52mj
+Mittel       CVE-2026-34477  GHSA-6hg6-v5c8-fphq
+Mittel       CVE-2026-34479  GHSA-h383-gmxw-35v2
+Mittel       CVE-2026-34480  GHSA-3pxv-7cmr-fjr4

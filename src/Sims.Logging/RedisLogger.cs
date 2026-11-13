@@ -4,7 +4,6 @@ using StackExchange.Redis;
 
 namespace Sims.Logging;
 
-/// <summary>Schreibt technische Logmeldungen in die gemeinsame Redis-Liste.</summary>
 public sealed class RedisLogger : ILogger
 {
     public const string RedisKey = "logs";
@@ -16,7 +15,6 @@ public sealed class RedisLogger : ILogger
     public RedisLogger(IConnectionMultiplexer multiplexer, string serviceName)
         : this(serviceName, json =>
         {
-            // Bei einem Ausfall bleiben die anderen Logger (z.B. Konsole) nutzbar.
             if (!multiplexer.IsConnected)
                 return;
 
@@ -28,7 +26,7 @@ public sealed class RedisLogger : ILogger
         ArgumentNullException.ThrowIfNull(multiplexer);
     }
 
-    // Trennt das Nachrichtenformat vom Transport, damit es ohne Redis testbar ist.
+    // Für Tests ohne Redis
     internal RedisLogger(string serviceName, Action<string> writeRecord)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(serviceName);
@@ -53,7 +51,7 @@ public sealed class RedisLogger : ILogger
             var message = formatter(state, exception);
             if (exception is not null)
             {
-                // Keine Exception.Message und keinen Stacktrace automatisch übernehmen.
+                // Nur den Typ, die Message kann sensible Daten enthalten.
                 message = string.IsNullOrEmpty(message)
                     ? exception.GetType().Name
                     : $"{message} ({exception.GetType().Name})";
@@ -75,8 +73,7 @@ public sealed class RedisLogger : ILogger
         }
         catch (Exception)
         {
-            // Logging darf die Anwendung nicht stoppen. Hier nicht erneut loggen,
-            // sonst könnte ein Logger-Fehler eine Endlosschleife auslösen.
+            // Nicht erneut loggen, sonst Endlosschleife.
         }
     }
 }

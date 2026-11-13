@@ -7,18 +7,18 @@
 
 SIMS hilft einem Team bei der Entscheidung, ob es eine Softwareversion freigeben kann. Du lädst eine Liste der verwendeten Softwarepakete hoch. Der Worker prüft die Paketversionen auf bekannte Schwachstellen. Im Browser siehst du das Urteil, die einzelnen Funde und die Tickets, um die sich das Team kümmern muss.
 
-**Welche Version starte ich?** Die folgende Anleitung beschreibt den integrierten Teamstand auf dem [Frontend-Design-Branch](https://github.com/r4nnd0m/ac_ProjectSeks/tree/bereinigtes-backend-based-on-frontend-design). Dort laufen Weboberfläche, APIs und Worker gemeinsam. Auf `main` kannst du den Worker separat mit vorbereiteten Testdaten ausprobieren. [Anleitung zur Offline-Demo](docs/worker/DEMO_Anleitung.txt)
+Auf `main` laufen Weboberfläche, APIs und Worker gemeinsam. Die folgenden Schritte starten diesen Teamstand lokal.
 
 [Lokaler Start](#lokaler-start) · [Erster Scan](#erster-scan) · [Urteile und Tickets](#urteile-und-tickets) · [Projektaufbau](#projektaufbau) · [Entwicklung und Übergaben](#entwicklung-und-übergaben)
 
 ## Lokaler Start
 
-Du brauchst Git und ein laufendes Docker Desktop mit Linux-Containern. Öffne PowerShell im Projektordner des Frontend-Design-Branches. Dort liegt `docker-compose.yml`. Docker bringt die Laufzeit für das Frontend, die .NET-Dienste, SQL Server und Redis mit.
+Du brauchst Git und ein laufendes Docker Desktop mit Linux-Containern. Öffne PowerShell im Projektordner von `main`. Dort liegt `docker-compose.yml`. Docker bringt die Laufzeit für das Frontend, die .NET-Dienste, SQL Server und Redis mit.
 
 **Wenn SIMS auf diesem PC schon eingerichtet ist**, verwende denselben Projektordner und seine vorhandene `.env`.
 
 ```powershell
-docker compose up -d --no-build
+docker compose up -d --build
 ```
 
 Öffne danach [SIMS auf localhost:8080](http://localhost:8080). Melde dich mit `ADMIN_EMAIL` und `ADMIN_PASSWORD` aus deiner lokalen `.env` an. Bei aktivierter Zwei-Faktor-Anmeldung gibst du zusätzlich den aktuellen sechsstelligen Code aus deiner Authenticator-App ein. Zum Einrichten öffnest du nach der Anmeldung **2FA**, scannst den QR-Code mit der App und bestätigst mit ihrem aktuellen Code.
@@ -29,7 +29,7 @@ docker compose up -d --no-build
 1. Hole die Teamversion und wechsle in den Projektordner.
 
    ```powershell
-   git clone --branch bereinigtes-backend-based-on-frontend-design https://github.com/r4nnd0m/ac_ProjectSeks.git sims
+   git clone --branch main https://github.com/r4nnd0m/ac_ProjectSeks.git sims
    cd sims
    ```
 
@@ -46,16 +46,6 @@ docker compose up -d --no-build
 
    ```powershell
    docker compose up -d --build
-   ```
-
-   **Bekannte Besonderheit auf diesem Branch (Stand `abe8b59`)** · Beim Bau des Frontends meldet TypeScript `TS6133` oder `TS6192` für unbenutzte Variablen und Importe. Falls dein Build daran stoppt, führe diesen Block im Projektordner aus. Er schaltet diese Prüfung nur für das lokale Web-Image aus und baut die übrigen Dienste regulär.
-
-   ```powershell
-   $webImage = docker compose config --images | Where-Object { $_ -match '-web(:latest)?$' }
-   $buildStep = 'RUN sed -i ''/noUnusedLocals/s/true/false/'' tsconfig.app.json && npm run build'
-   (Get-Content -Raw src/Web/Dockerfile).Replace('RUN npm run build', $buildStep) | docker build -f - -t $webImage ./src/Web
-   docker compose build auth-api scan-api news-api worker
-   docker compose up -d --no-build
    ```
 
 4. Mit `docker compose ps -a` siehst du den Startzustand. SQL und Redis melden `healthy`. Für `sql-init` bedeutet `Exited (0)`, dass die einmalige Vorbereitung erfolgreich war. Sobald die Anmeldung bereit ist, öffne [SIMS im Browser](http://localhost:8080).
@@ -95,12 +85,12 @@ Die zugewiesene Rolle steht am Ticket. Ein kritisches Ticket ohne KEV-Eintrag be
 
 | Baustein | Aufgabe |
 | --- | --- |
-| [Weboberfläche](https://github.com/r4nnd0m/ac_ProjectSeks/tree/bereinigtes-backend-based-on-frontend-design/src/Web) | React und TypeScript zeigen Projekte, Scans, Tickets, Verwaltung und öffentliche Meldungen. Der Browser erreicht alle APIs über Port **8080**. |
-| [Auth-API](https://github.com/r4nnd0m/ac_ProjectSeks/tree/bereinigtes-backend-based-on-frontend-design/src/AuthApi) | Anmeldung, Zwei-Faktor-Anmeldung, Rollen, Benutzer und Teams. Lokal direkt auf Port **8081**. |
-| [Scan-API](https://github.com/r4nnd0m/ac_ProjectSeks/tree/bereinigtes-backend-based-on-frontend-design/src/ScanApi) | Nimmt SBOMs an, speichert Scanaufträge und liefert Projekte, Ergebnisse, Tickets und Audit-Einträge. Port **8082**. |
-| [Worker](https://github.com/r4nnd0m/ac_ProjectSeks/tree/bereinigtes-backend-based-on-frontend-design/src/Worker) | Holt wartende Aufträge aus SQL, fragt OSV nach Schwachstellen, ergänzt KEV- und EPSS-Daten und speichert Urteil und Tickets. Ein zweiter Hintergrundjob prüft die Ticketfristen. |
-| [News-API](https://github.com/r4nnd0m/ac_ProjectSeks/tree/bereinigtes-backend-based-on-frontend-design/src/NewsApi) | Liest öffentliche Sicherheitsmeldungen aus den konfigurierten Feeds. Port **8083**. |
-| [SQL Server und Redis](https://github.com/r4nnd0m/ac_ProjectSeks/blob/bereinigtes-backend-based-on-frontend-design/docker-compose.yml) | SQL Server speichert die fachlichen Daten dauerhaft. Redis sammelt unter anderem technische Logmeldungen. |
+| [Weboberfläche](src/Web) | React und TypeScript zeigen Projekte, Scans, Tickets, Verwaltung und öffentliche Meldungen. Der Browser erreicht alle APIs über Port **8080**. |
+| [Auth-API](src/AuthApi) | Anmeldung, Zwei-Faktor-Anmeldung, Rollen, Benutzer und Teams. Lokal direkt auf Port **8081**. |
+| [Scan-API](src/ScanApi) | Nimmt SBOMs an, speichert Scanaufträge und liefert Projekte, Ergebnisse, Tickets und Audit-Einträge. Port **8082**. |
+| [Worker](src/Worker) | Holt wartende Aufträge aus SQL, fragt OSV nach Schwachstellen, ergänzt KEV- und EPSS-Daten und speichert Urteil und Tickets. Ein zweiter Hintergrundjob prüft die Ticketfristen. |
+| [News-API](src/NewsApi) | Liest öffentliche Sicherheitsmeldungen aus den konfigurierten Feeds. Port **8083**. |
+| [SQL Server und Redis](docker-compose.yml) | SQL Server speichert die fachlichen Daten dauerhaft. Redis sammelt unter anderem technische Logmeldungen. |
 
 ## Entwicklung und Übergaben
 
@@ -122,7 +112,7 @@ Beim Start mit `MIGRATIONS_RUN=true` wenden die APIs ihre ausstehenden EF-Core-M
 - **Vorhandene Daten übernehmen.** Dieser Branch verwendet das Docker-Volume `sqldata`. Der frühere Stand auf `main-test` verwendete `mssql_data`. Prüfe beim Wechsel den Volume-Namen und den Compose-Projektnamen, damit du die gewünschte Datenbank öffnest.
 - **Lokaler Datenbankzugriff.** Durch die lokale Compose-Ergänzung ist SQL vom PC aus unter `127.0.0.1,1433` erreichbar, im Container unter `sql,1433`. Beim Deployment lädt `docker compose -f docker-compose.yml up -d` nur die Basisdatei.
 
-[Werkzeug für Scan-Migrationen](https://github.com/r4nnd0m/ac_ProjectSeks/blob/bereinigtes-backend-based-on-frontend-design/scripts/scan-db.ps1) · [Lokale Portfreigaben](https://github.com/r4nnd0m/ac_ProjectSeks/blob/bereinigtes-backend-based-on-frontend-design/docker-compose.override.yml)
+[Werkzeug für Scan-Migrationen](scripts/scan-db.ps1) · [Lokale Portfreigaben](docker-compose.override.yml)
 
 </details>
 
@@ -131,11 +121,11 @@ Beim Start mit `MIGRATIONS_RUN=true` wenden die APIs ihre ausstehenden EF-Core-M
 
 | Bereich | Übergaben |
 | --- | --- |
-| Stefan · Worker | [D1 Logging](docs/worker/D1_Logging_Uebergabe.txt) · [D2 OSV](docs/worker/D2_OSV_Uebergabe.txt) · [D3 Scanablauf](https://github.com/r4nnd0m/ac_ProjectSeks/blob/bereinigtes-backend-based-on-frontend-design/docs/worker/D3_Scanablauf_Uebergabe.txt) · [D4 Eskalation](https://github.com/r4nnd0m/ac_ProjectSeks/blob/bereinigtes-backend-based-on-frontend-design/docs/worker/D4_Eskalation_Uebergabe.txt) |
+| Stefan · Worker | [D1 Logging](docs/worker/D1_Logging_Uebergabe.txt) · [D2 OSV](docs/worker/D2_OSV_Uebergabe.txt) · [D3 Scanablauf](docs/worker/D3_Scanablauf_Uebergabe.txt) · [D4 Eskalation](docs/worker/D4_Eskalation_Uebergabe.txt) |
 | Patrick · Scan-API und Security-Basis | [B1 Datenmodell](docs/worker/abstimmung/B1_Datenmodell.txt) · [B2 Upload](docs/worker/abstimmung/B2_SBOM_Upload.txt) · [B3 Projekte und Teams](docs/worker/abstimmung/B3_Projekt_und_Team.txt) · [B5 Scanergebnis](docs/worker/abstimmung/B5_Scanergebnis_lesen.txt) |
-| Christian · Regeln und Infrastruktur | [B4 Scanurteil](https://github.com/r4nnd0m/ac_ProjectSeks/blob/bereinigtes-backend-based-on-frontend-design/docs/worker/abstimmung/B4_Scanurteil.txt) · [C4 Eskalationsregeln](https://github.com/r4nnd0m/ac_ProjectSeks/blob/bereinigtes-backend-based-on-frontend-design/docs/worker/abstimmung/C4_Eskalationsregeln.txt) · [F2 Compose](docs/worker/abstimmung/F2_Compose.txt) · [F3 Worker-Image](docs/worker/abstimmung/F3_Workerimage.txt) |
+| Christian · Regeln und Infrastruktur | [B4 Scanurteil](docs/worker/abstimmung/B4_Scanurteil.txt) · [C4 Eskalationsregeln](docs/worker/abstimmung/C4_Eskalationsregeln.txt) · [F2 Compose](docs/worker/abstimmung/F2_Compose.txt) · [F3 Worker-Image](docs/worker/abstimmung/F3_Workerimage.txt) |
 | Leo · Tickets und Audit | [C1 Ticketmodell](docs/worker/abstimmung/C1_Ticketmodell.txt) · [C2 Ticket-API](docs/worker/abstimmung/C2_Ticket_API.txt) · [C3 Automatische Tickets](docs/worker/abstimmung/C3_Automatische_Tickets.txt) · [C5 Audit](docs/worker/abstimmung/C5_Audit.txt) |
 
-[Gemeinsame Worker-Abstimmung](docs/worker/ABSTIMMUNG_TEAM_WORKER.txt) · [Entwicklungsanleitung für das Frontend](https://github.com/r4nnd0m/ac_ProjectSeks/blob/bereinigtes-backend-based-on-frontend-design/src/Web/README.md)
+[Gemeinsame Worker-Abstimmung](docs/worker/ABSTIMMUNG_TEAM_WORKER.txt) · [Entwicklungsanleitung für das Frontend](src/Web/README.md)
 
 </details>

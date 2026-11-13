@@ -1,6 +1,8 @@
 ﻿C4 | Wann geht ein Ticket an Lead oder Admin?
 Für Christian | Abstimmung mit Stefan | Entwurf vom 07.11.2026
 
+Stand 10.11.2026: Im gemeinsamen Teststand infra-test umgesetzt. Aktuelle Regeln und Konfigurationswerte siehe README.
+
 C3 benötigt die Startstufe. D4 benötigt die nächste Stufe samt Rolle und Frist.
 
 Vorschlag für die Umsetzung

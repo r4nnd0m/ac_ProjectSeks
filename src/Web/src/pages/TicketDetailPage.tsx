@@ -1,204 +1,202 @@
-// E4: Ticket öffnen, bearbeiten, übernehmen, schließen. Eskalationsstufe,
-// Frist, zuständige Rolle und persönliche Bearbeitung werden getrennt
-// gezeigt (C1/C2). Risikoakzeptanz: nur Admin mit zweitem Faktor und mit
-// Begründung ab 20 Zeichen. Die Eskalation selbst erledigt der Worker im
-// Hintergrund – die Oberfläche zeigt nur ihr Ergebnis.
+// E4: Ticketdetail mit allen Feldern von TicketResponse. Aktionen:
+// Übernehmen (POST /tickets/{id}/take), Schließen (POST /tickets/{id}/close),
+// Bearbeiten (PUT /tickets/{id}). Nur für Admins: „Risiko akzeptieren“ mit
+// Pflicht-Begründung ab 20 Zeichen (POST /tickets/{id}/accept-risk).
+// Antwortet der Server dort mit 403, fehlt die MFA-Anmeldung.
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { scanApi } from '../api/scanApi';
-import { ErrorBox, Field, SeverityBadge, Spinner, StatusBadge } from '../components/ui';
+import { ApiError, describeError } from '../api/http';
+import { ErrorBox, Field, SeverityBadge, Spinner, StatusBadge, useToast } from '../components/ui';
 import { dueLabel, formatDateTime } from '../utils';
-import type { TicketDetailDto } from '../types';
+import type { Severity, TicketDto } from '../types';
 
 const MIN_REASON = 20;
+const MAX_REASON = 2000;
 
 export function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { token, user } = useAuth();
+  const { addToast } = useToast();
 
-  const [ticket, setTicket] = useState<TicketDetailDto | null>(null);
+  const [ticket, setTicket] = useState<TicketDto | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [actionError, setActionError] = useState<unknown>(null);
+  const [riskError, setRiskError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
 
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-
+  const [severity, setSeverity] = useState<Severity>('Medium');
   const [reason, setReason] = useState('');
 
+  const apply = useCallback((t: TicketDto) => {
+    setTicket(t);
+    setTitle(t.title);
+    setDescription(t.description);
+    setSeverity(t.severity);
+  }, []);
+
   const reload = useCallback(() => {
-    if (!token || !id) return;
+    if (!token || !id) return Promise.resolve();
     setError(null);
-    scanApi
-      .getTicket(token, id)
-      .then((t) => {
-        setTicket(t);
-        setTitle(t.title);
-        setDescription(t.description ?? '');
-      })
-      .catch(setError);
-  }, [token, id]);
+    return scanApi.getTicket(token, id).then(apply).catch(setError);
+  }, [token, id, apply]);
 
-  useEffect(reload, [reload]);
+  useEffect(() => {
+    void reload();
+  }, [reload]);
 
-  async function run(action: () => Promise<TicketDetailDto>) {
+  /** Führt eine Aktion aus und lädt das Ticket danach neu (take/close/accept-risk liefern 204). */
+  async function run(action: () => Promise<unknown>, onError: (e: unknown) => void = setActionError, successMsg?: string): Promise<boolean> {
     setBusy(true);
     setActionError(null);
+    setRiskError(null);
     try {
-      setTicket(await action());
+      await action();
+      await reload();
+      if (successMsg) addToast(successMsg, 'success');
+      return true;
     } catch (err) {
+      const msg = describeError(err);
       setActionError(err);
+      onError(err);
+      addToast(msg, 'error');
+      return false;
     } finally {
       setBusy(false);
     }
   }
 
   if (error) return <ErrorBox error={error} />;
-  if (!ticket) return <Spinner label="Ticket wird geladen…" />;
+  if (!ticket || !token) return <Spinner label="Ticket wird geladen…" />;
 
   const finished = ticket.status === 'Closed' || ticket.status === 'RiskAccepted';
+  const reasonLength = reason.trim().length;
+  const t = ticket;
+
+  async function onSave(e: FormEvent) {
+    e.preventDefault();
+    const ok = await run(
+      () => scanApi.updateTicket(token!, t.id, { title: title.trim(), description: description.trim(), severity }),
+      undefined,
+      'Änderungen gespeichert',
+    );
+    if (ok) setEditing(false);
+  }
+
+  async function onAcceptRisk(e: FormEvent) {
+    e.preventDefault();
+    const ok = await run(() => scanApi.acceptRisk(token!, t.id, reason.trim()), setRiskError, 'Risiko akzeptiert');
+    if (ok) setReason('');
+  }
 
   return (
     <div>
-      <h1>{ticket.title}</h1>
+      <h1>{t.title}</h1>
       <p className="hint">
-        Ticket {ticket.id} · <Link to={`/projects/${ticket.projectId}`}>Projekt {ticket.projectId}</Link> ·
-        Angelegt {formatDateTime(ticket.createdAt)} · Zuletzt geändert {formatDateTime(ticket.updatedAt)}
+        <Link to="/tickets">Zur Ticketliste</Link> · Ticket <code>{t.id}</code>
       </p>
       {actionError ? <ErrorBox error={actionError} /> : null}
 
       <div className="card">
-        <h2>Status und Eskalation</h2>
+        <h2>Details</h2>
         <dl className="kv">
           <dt>Status</dt>
-          <dd><StatusBadge status={ticket.status} /></dd>
+          <dd><StatusBadge status={t.status} /></dd>
           <dt>Schweregrad</dt>
-          <dd><SeverityBadge severity={ticket.severity} /></dd>
+          <dd><SeverityBadge severity={t.severity} /></dd>
           <dt>Eskalationsstufe</dt>
-          <dd>{ticket.escalationLevel} von 3 (eskaliert der Worker im Hintergrund)</dd>
+          <dd>{t.escalationLevel} von 3 (der Worker eskaliert im Hintergrund)</dd>
           <dt>Frist</dt>
-          <dd>{dueLabel(ticket.dueAt)}</dd>
+          <dd>{dueLabel(t.dueAt)}</dd>
           <dt>Zuständige Rolle</dt>
-          <dd>
-            {ticket.assignedRole ?? 'keine (regulär, Stufe 1)'}{' '}
-            <span className="hint">— die Rolle am Ticket, unabhängig von Benutzerkonten</span>
-          </dd>
-          <dt>Persönliche Bearbeitung</dt>
-          <dd>
-            {ticket.assigneeName ?? 'bisher hat niemand dieses Ticket übernommen'}
-          </dd>
-          {ticket.scanId ? (
-            <>
-              <dt>Herkunft</dt>
-              <dd>
-                <Link to={`/scans/${ticket.scanId}`}>Aus Scan {ticket.scanId}</Link>
-                {ticket.findingId ? ` · Fund ${ticket.findingId}` : ''}
-              </dd>
-            </>
-          ) : null}
+          <dd>{t.assignedRole ?? 'keine'}</dd>
+          <dt>Bearbeitet von</dt>
+          <dd>{t.assigneeName ?? 'noch niemand übernommen'}</dd>
+          <dt>Gemeldet von</dt>
+          <dd>{t.reporterName}</dd>
+          <dt>CVE</dt>
+          <dd>{t.cve ? <code>{t.cve}</code> : '–'}</dd>
+          <dt>System</dt>
+          <dd>{t.system ?? '–'}</dd>
+          <dt>Projekt</dt>
+          <dd>{t.projectId ? <Link to={`/projects/${t.projectId}`}>{t.projectId}</Link> : '–'}</dd>
+          <dt>Angelegt</dt>
+          <dd>{formatDateTime(t.createdAt)}</dd>
+          <dt>Abgeschlossen</dt>
+          <dd>{formatDateTime(t.closedAt)}</dd>
         </dl>
-        {ticket.description ? <p>{ticket.description}</p> : <p className="hint">Keine Beschreibung.</p>}
+        <h3>Beschreibung</h3>
+        {/* Reiner Text, nie HTML */}
+        <p className="pre">{t.description || '–'}</p>
       </div>
 
       <div className="card">
         <h2>Aktionen</h2>
-        {!finished && ticket.status !== 'InProgress' ? (
-          <button type="button" disabled={busy} onClick={() => run(() => scanApi.takeTicket(token!, ticket.id))}>
-            Ticket übernehmen
-          </button>
-        ) : null}{' '}
+        {finished ? <p className="hint">Das Ticket ist abgeschlossen.</p> : null}
         {!finished ? (
-          <button type="button" className="secondary" disabled={busy} onClick={() => run(() => scanApi.closeTicket(token!, ticket.id))}>
-            Schließen
-          </button>
-        ) : null}{' '}
-        <button type="button" className="secondary" disabled={busy} onClick={() => setEditing((e) => !e)}>
-          {editing ? 'Bearbeiten abbrechen' : 'Bearbeiten'}
-        </button>
-        {editing ? (
-          <form
-            onSubmit={(e: FormEvent) => {
-              e.preventDefault();
-              run(() => scanApi.updateTicket(token!, ticket.id, { title: title.trim(), description: description.trim() }))
-                .then(() => setEditing(false));
-            }}
-          >
+          <div style={{ display: 'flex', gap: 'var(--spacing-sm)', flexWrap: 'wrap', alignItems: 'center' }}>
+            <button type="button" disabled={busy} onClick={() => run(() => scanApi.takeTicket(token, t.id), undefined, 'Ticket übernommen')}>
+              Übernehmen
+            </button>
+            <button type="button" className="secondary" disabled={busy} onClick={() => run(() => scanApi.closeTicket(token, t.id), undefined, 'Ticket geschlossen')}>
+              Schließen
+            </button>
+            <button type="button" className="secondary" disabled={busy} onClick={() => setEditing((v) => !v)}>
+              {editing ? 'Bearbeiten abbrechen' : 'Bearbeiten'}
+            </button>
+          </div>
+        ) : null}
+        {editing && !finished ? (
+          <form onSubmit={onSave}>
             <Field label="Titel">
-              <input value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={150} />
+              <input value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={200} />
             </Field>
             <Field label="Beschreibung">
-              <textarea rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
+              <textarea rows={4} value={description} onChange={(e) => setDescription(e.target.value)} required maxLength={4000} />
             </Field>
-            <button type="submit" disabled={busy || !title.trim()}>Änderungen speichern</button>
+            <Field label="Schweregrad">
+              <select value={severity} onChange={(e) => setSeverity(e.target.value as Severity)}>
+                <option value="Critical">Kritisch</option>
+                <option value="High">Hoch</option>
+                <option value="Medium">Mittel</option>
+                <option value="Low">Niedrig</option>
+              </select>
+            </Field>
+            <div style={{ marginTop: 'var(--spacing-md)' }}>
+              <button type="submit" disabled={busy || !title.trim() || !description.trim()}>
+                Änderungen speichern
+              </button>
+            </div>
           </form>
         ) : null}
       </div>
 
-      <div className="card">
-        <h2>Risiko akzeptieren</h2>
-        {!user?.mfaVerified ? (
-          <p className="hint">
-            Nur eine Person mit Admin-Rolle <em>und</em> bestätigtem zweitem Faktor darf ein Risiko akzeptieren.
-            Deine aktuelle Anmeldung hat keinen bestätigten zweiten Faktor.
-          </p>
-        ) : user.role !== 'Admin' ? (
-          <p className="hint">Nur Admins dürfen Risiken akzeptieren.</p>
-        ) : finished ? (
-          <p className="hint">Das Ticket ist bereits abgeschlossen.</p>
-        ) : (
-          <form
-            onSubmit={(e: FormEvent) => {
-              e.preventDefault();
-              run(() => scanApi.acceptRisk(token!, ticket.id, reason).then((t) => { setReason(''); return t; }));
-            }}
-          >
-            <Field
-              label="Begründung"
-              hint={`Mindestens ${MIN_REASON} Zeichen. Die Prüfung erfolgt zusätzlich im Backend.`}
-            >
-              <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
+      {user?.role === 'Admin' && !finished ? (
+        <div className="card">
+          <h2>Risiko akzeptieren</h2>
+          {!user.mfaVerified ? (
+            <p className="hint">Hinweis: Du bist ohne zweiten Faktor angemeldet. Der Server lehnt die Freigabe dann ab.</p>
+          ) : null}
+          <form onSubmit={onAcceptRisk}>
+            <Field label="Begründung" hint={`Pflichtfeld, mindestens ${MIN_REASON} Zeichen.`}>
+              <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} required maxLength={MAX_REASON} />
             </Field>
-            <button
-              type="submit"
-              className="danger"
-              disabled={busy || reason.trim().length < MIN_REASON}
-            >
-              Risiko akzeptieren ({reason.trim().length}/{MIN_REASON} Zeichen)
+            {riskError instanceof ApiError && riskError.status === 403 ? (
+              <div className="errorbox" role="alert">Dafür ist ein Login mit MFA nötig.</div>
+            ) : riskError ? (
+              <ErrorBox error={riskError} />
+            ) : null}
+            <button type="submit" className="danger" disabled={busy || reasonLength < MIN_REASON}>
+              Risiko akzeptieren ({reasonLength}/{MIN_REASON} Zeichen)
             </button>
           </form>
-        )}
-      </div>
-
-      <div className="card">
-        <h2>Audit-Protokoll dieses Tickets</h2>
-        {ticket.audit.length === 0 ? (
-          <p className="hint">Noch keine Einträge.</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Zeitpunkt</th>
-                <th>Wer</th>
-                <th>Aktion</th>
-                <th>Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...ticket.audit].reverse().map((a) => (
-                <tr key={a.id}>
-                  <td>{formatDateTime(a.timestamp)}</td>
-                  <td>{a.userName}</td>
-                  <td><code>{a.action}</code></td>
-                  <td>{a.details}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -2,7 +2,6 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace Worker.Enrichment;
 
-/// <summary>Ein gemeinsamer Cache für alle kurzlebigen KevClient-Instanzen.</summary>
 public sealed class KevCatalogCache(IMemoryCache cache) : IDisposable
 {
     private readonly object cacheKey = new();
@@ -15,7 +14,6 @@ public sealed class KevCatalogCache(IMemoryCache cache) : IDisposable
         if (cache.TryGetValue<HashSet<string>>(cacheKey, out var existing))
             return new HashSet<string>(existing!, StringComparer.OrdinalIgnoreCase);
 
-        // Mehrere gleichzeitige Aufrufer sollen den Katalog nicht mehrfach laden.
         await refreshGate.WaitAsync(ct);
         try
         {
@@ -25,7 +23,7 @@ public sealed class KevCatalogCache(IMemoryCache cache) : IDisposable
                 ct.ThrowIfCancellationRequested();
                 cache.Set(cacheKey, existing, TimeSpan.FromHours(6));
             }
-            // Der Aufrufer darf seine Menge ändern, ohne den Cache für andere zu verändern.
+            // Kopie zurückgeben, damit Aufrufer den Cache nicht verändern
             return new HashSet<string>(existing!, StringComparer.OrdinalIgnoreCase);
         }
         finally { refreshGate.Release(); }

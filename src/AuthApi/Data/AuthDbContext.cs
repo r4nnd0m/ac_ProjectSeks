@@ -11,6 +11,7 @@ public class AuthDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Gui
         : base(options)
     {
     }
+
     public DbSet<Team> Teams { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)

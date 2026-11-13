@@ -4,6 +4,8 @@ namespace Sims.Shared.Entities;
 
 public class Ticket
 {
+    public const int MaxTitleLength = 200;
+
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid TeamId { get; private set; }
     public Guid? ProjectId { get; private set; }
@@ -26,13 +28,11 @@ public class Ticket
 
     public bool IsFinished => Status == TicketStatus.Closed || Status == TicketStatus.RiskAccepted;
 
-    // Nur für EF Core: Die Datenbank braucht einen Konstruktor ohne Parameter, um Tickets zu laden.
+    // Für EF Core
     private Ticket()
     {
     }
 
-    // Setzt alle Angaben einmal beim Erzeugen. Danach nur noch über Methoden änderbar (private set),
-    // damit niemand die Angaben nachträglich verändern kann und das Audit-Log integer bleibt.
     public Ticket(NewTicket data, DateTimeOffset now)
     {
         TeamId = data.TeamId;
@@ -103,7 +103,6 @@ public class Ticket
         ClosedAt = now;
     }
 
-    // Die Wächter-Prüfung steht nur einmal hier, damit sie nicht in jeder Methode wiederholt wird.
     private void EnsureNotFinished()
     {
         if (IsFinished)

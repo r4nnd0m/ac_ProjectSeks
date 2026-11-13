@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.EntityFrameworkCore.Infrastructure.Internal;
 using Microsoft.Extensions.Options;
 using Sims.Contracts;
 
@@ -34,7 +33,7 @@ public class AuthController : ControllerBase
         _options = options.Value;
         _blacklist = blacklist;
     }
-    
+
     [EnableRateLimiting("login")]
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequest request)
@@ -57,16 +56,18 @@ public class AuthController : ControllerBase
             string mfaToken = _tokenService.CreateMfaToken(user);
             return Ok(new LoginResponse(null, null, true, mfaToken));
         }
-        
+
         await _userManager.ResetAccessFailedCountAsync(user);
 
         IList<string> roles = await _userManager.GetRolesAsync(user);
-        string role = roles.Single();
+        if (roles.Count != 1 || !Roles.All.Contains(roles[0]))
+            return Unauthorized();
+
+        string role = roles[0];
         string token = _tokenService.CreateAccessToken(user, role, false);
 
         return Ok(new LoginResponse(token, _options.ExpiresMinutes * 60, false, null));
     }
-    
 
     [Authorize]
     [HttpGet("me")]
@@ -85,9 +86,12 @@ public class AuthController : ControllerBase
         }
 
         IList<string> roles = await _userManager.GetRolesAsync(user);
-        string role = roles.Single();
+        if (roles.Count != 1 || !Roles.All.Contains(roles[0]))
+            return Unauthorized();
 
-        return Ok(new MeResponse(user.Id,user.Email!, role, user.TeamId,user.TwoFactorEnabled));
+        string role = roles[0];
+
+        return Ok(new MeResponse(user.Id, user.Email!, role, user.TeamId, user.TwoFactorEnabled));
     }
 
     [Authorize]
@@ -105,5 +109,4 @@ public class AuthController : ControllerBase
         await _blacklist.RevokeAsync(jti, expiresAt);
         return NoContent();
     }
-    
 }

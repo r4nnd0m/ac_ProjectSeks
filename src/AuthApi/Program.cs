@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using System.Threading.RateLimiting;
 using AuthApi.Data;
 using AuthApi.Models;
@@ -37,9 +38,8 @@ public class Program
             .AddDefaultTokenProviders();
 
         builder.Services.AddDataProtection();
-
-        builder.Services.AddControllers();
-        // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+        builder.Services.AddControllers().AddJsonOptions(options =>
+            options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase);
         builder.Services.AddOpenApi();
 
         builder.Services.AddHealthChecks();
@@ -63,7 +63,7 @@ public class Program
                     ValidIssuer = jwt.Issuer,
                     ValidAudience = jwt.Audience,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)),
-                    ClockSkew = TimeSpan.FromSeconds(30),
+                    ClockSkew = AccessTokenPolicy.ClockSkew,
                     RoleClaimType = ClaimNames.Role,
                     NameClaimType = ClaimNames.Name
                 };
@@ -72,11 +72,16 @@ public class Program
                     OnTokenValidated = async ctx =>
                     {
                         string? jti = ctx.Principal?.FindFirst(ClaimNames.Jti)?.Value;
+                        if (string.IsNullOrWhiteSpace(jti) || !AccessTokenPolicy.HasUserAndTeam(ctx.Principal))
+                        {
+                            ctx.Fail("Unvollständiges Zugriffstoken.");
+                            return;
+                        }
                         ITokenBlacklist blacklist =
                             ctx.HttpContext.RequestServices.GetRequiredService<ITokenBlacklist>();
                         try
                         {
-                            if (jti == null || await blacklist.IsRevokedAsync(jti))
+                            if (await blacklist.IsRevokedAsync(jti))
                             {
                                 ctx.Fail("Der Token wurde widerrufen!");
                             }
@@ -116,9 +121,12 @@ public class Program
                 }));
         });
 
+        builder.Services.AddScoped<UserService>();
+        builder.Services.AddScoped<TeamService>();
+
         var app = builder.Build();
 
-        if (app.Configuration["Migrations:Run"] == "true")
+        if (app.Configuration.GetValue<bool>("Migrations:Run"))
         {
             using IServiceScope scope = app.Services.CreateScope();
             AuthDbContext db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
@@ -132,7 +140,6 @@ public class Program
             await DbSeeder.SeedAsync(db, userManager, roleManager, app.Configuration);
         }
 
-        // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
             app.MapScalarApiReference();
@@ -140,15 +147,10 @@ public class Program
         }
 
         app.UseHttpsRedirection();
-
         app.UseRateLimiter();
-
         app.UseAuthentication();
-
         app.UseAuthorization();
-
         app.MapControllers();
-
         app.MapHealthChecks("/health");
 
         app.Run();
@@ -156,20 +158,22 @@ public class Program
 
     private static async Task MigrateWithRetryAsync(AuthDbContext db, ILogger log)
     {
-        for (int i = 1; i <= 10; i++)
+        const int maxAttempts = 10;
+        for (int attempt = 1; ; attempt++)
         {
             try
             {
                 await db.Database.MigrateAsync();
                 return;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (attempt < maxAttempts &&
+                (ex is Microsoft.Data.SqlClient.SqlException or TimeoutException ||
+                 ex.InnerException is Microsoft.Data.SqlClient.SqlException))
             {
-                log.LogWarning("Versuch {Versuch} von 10 bei der Migration fehlgeschlagen: {Fehler}", i, ex.Message);
+                log.LogWarning("SQL-Migration: Versuch {Versuch} von {Max} fehlgeschlagen ({Fehlertyp}).",
+                    attempt, maxAttempts, ex.GetType().Name);
                 await Task.Delay(TimeSpan.FromSeconds(5));
             }
         }
-
-        throw new Exception("Die Datenbank ist nach 10 Versuchen nicht erreichbar.");
     }
 }

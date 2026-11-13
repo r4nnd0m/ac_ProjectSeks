@@ -37,13 +37,7 @@ public class MfaController : ControllerBase
     [HttpPost("setup")]
     public async Task<IActionResult> Setup()
     {
-        string? id = User.FindFirstValue(ClaimNames.Sub);
-        if (id == null)
-        {
-            return Unauthorized();
-        }
-
-        ApplicationUser? user = await _userManager.FindByIdAsync(id);
+        ApplicationUser? user = await FindSignedInUserAsync();
         if (user == null || !user.IsActive)
         {
             return Unauthorized();
@@ -54,7 +48,9 @@ public class MfaController : ControllerBase
             return Conflict();
         }
 
-        await _userManager.ResetAuthenticatorKeyAsync(user);
+        var reset = await _userManager.ResetAuthenticatorKeyAsync(user);
+        if (!reset.Succeeded)
+            return Conflict();
         string? secret = await _userManager.GetAuthenticatorKeyAsync(user);
 
         if (secret == null)
@@ -70,13 +66,7 @@ public class MfaController : ControllerBase
     [HttpPost("confirm")]
     public async Task<IActionResult> Confirm(MfaConfirmRequest request)
     {
-        string? id = User.FindFirstValue(ClaimNames.Sub);
-        if (id == null)
-        {
-            return Unauthorized();
-        }
-
-        ApplicationUser? user = await _userManager.FindByIdAsync(id);
+        ApplicationUser? user = await FindSignedInUserAsync();
         if (user == null || !user.IsActive)
         {
             return Unauthorized();
@@ -97,10 +87,18 @@ public class MfaController : ControllerBase
             return BadRequest();
         }
 
-        await _userManager.SetTwoFactorEnabledAsync(user, true);
+        var enabled = await _userManager.SetTwoFactorEnabledAsync(user, true);
+        if (!enabled.Succeeded)
+            return Conflict();
         return NoContent();
     }
-    
+
+    private Task<ApplicationUser?> FindSignedInUserAsync()
+    {
+        var id = User.FindFirstValue(ClaimNames.Sub);
+        return id is null ? Task.FromResult<ApplicationUser?>(null) : _userManager.FindByIdAsync(id);
+    }
+
     [EnableRateLimiting("login")]
     [HttpPost("verify")]
     public async Task<IActionResult> Verify(MfaVerifyRequest request)
@@ -110,7 +108,7 @@ public class MfaController : ControllerBase
             ValidIssuer = _options.Issuer,
             ValidAudience = MfaTokenConstants.Audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.Key)),
-            ClockSkew = TimeSpan.FromSeconds(30)
+            ClockSkew = AccessTokenPolicy.ClockSkew
         };
         TokenValidationResult result = await new JsonWebTokenHandler().ValidateTokenAsync(request.MfaToken, parameters);
         if (!result.IsValid)
@@ -131,7 +129,7 @@ public class MfaController : ControllerBase
         }
 
         ApplicationUser? user = await _userManager.FindByIdAsync(id);
-        if (user == null || !user.IsActive || await _userManager.IsLockedOutAsync(user))
+        if (user == null || !user.IsActive || !user.TwoFactorEnabled || await _userManager.IsLockedOutAsync(user))
         {
             return Unauthorized();
         }
@@ -150,7 +148,10 @@ public class MfaController : ControllerBase
         await _userManager.ResetAccessFailedCountAsync(user);
 
         IList<string> roles = await _userManager.GetRolesAsync(user);
-        string role = roles.Single();
+        if (roles.Count != 1 || !Roles.All.Contains(roles[0]))
+            return Unauthorized();
+
+        string role = roles[0];
         string token = _tokenService.CreateAccessToken(user, role, true);
         return Ok(new LoginResponse(token, _options.ExpiresMinutes * 60, false, null));
     }

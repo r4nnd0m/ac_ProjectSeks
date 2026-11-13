@@ -1,89 +1,76 @@
-// E5: Öffentliche Sicherheitsmeldungen über GET /news. Fremde Inhalte werden
-// ausschließlich als Text ausgegeben; Links nur bei http/https. Für jeden
-// Zustand (Laden, leer, keine Rechte, abgelaufene Anmeldung, unerreichbarer
-// Server) gibt es eine verständliche Meldung.
+// E5: Öffentliche Sicherheitsmeldungen über GET {newsUrl}/news, ohne Anmeldung.
+// Titel und Quelle werden ausschließlich als Text ausgegeben. Links nur bei
+// http/https, in neuem Tab mit rel="noopener noreferrer".
 
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { newsApi } from '../api/newsApi';
-import { ApiError } from '../api/http';
-import { EmptyState, ErrorBox, Spinner } from '../components/ui';
+import { EmptyState, ErrorBox, Spinner, useToast } from '../components/ui';
 import { formatDate, safeHttpUrl } from '../utils';
 import type { NewsItemDto } from '../types';
 
 export function NewsPage() {
+  const { addToast } = useToast();
+  const navigate = useNavigate();
   const [items, setItems] = useState<NewsItemDto[] | null>(null);
   const [error, setError] = useState<unknown>(null);
 
   const reload = useCallback(() => {
     setError(null);
     setItems(null);
-    newsApi.list().then(setItems).catch(setError);
+    newsApi.list().then(setItems).catch(setError).finally(() => {
+      addToast('Meldungen aktualisiert', 'info');
+    });
   }, []);
 
   useEffect(reload, [reload]);
 
   return (
     <div>
-      <h1>Öffentliche Meldungen</h1>
-      <p className="hint">
-        Sicherheitshinweise aus externen Quellen – immer ohne Anmeldung lesbar, immer als reiner Text.
-      </p>
+      <main className="content">
+        <div className="public-content">
+          <h1>Öffentliche Meldungen</h1>
+          <p className="hint">Sicherheitshinweise aus externen Quellen – ohne Anmeldung lesbar.</p>
 
-      {error instanceof ApiError && error.kind === 'expired' ? (
-        <div className="errorbox" role="alert">
-          Deine Anmeldung ist abgelaufen. Die öffentlichen Meldungen kannst du aber weiterhin lesen –
-          bitte melde dich oben neu an.
-        </div>
-      ) : null}
-      {error instanceof ApiError && error.kind === 'forbidden' ? (
-        <div className="errorbox" role="alert">
-          Diese Meldungen sind für dich nicht freigeschaltet. Falls das ein Fehler ist, frage eine
-          Admin-Person.
-        </div>
-      ) : null}
-      {error && !(error instanceof ApiError && (error.kind === 'expired' || error.kind === 'forbidden')) ? (
-        <ErrorBox error={error}>
-          {error instanceof ApiError && error.kind === 'unreachable' ? (
-            <span>Tipp für die Entwicklung: Im Demo-Modus (VITE_USE_MOCKS=true) antwortet eine erfundene News-Quelle.</span>
+          <div className="public-actions">
+            <button type="button" className="secondary" onClick={() => navigate('/projects')}>
+              ← Zur Anwendung
+            </button>
+            <button type="button" className="secondary" onClick={reload}>
+              Neu laden
+            </button>
+          </div>
+
+          {error ? <ErrorBox error={error} /> : null}
+          {!items && !error ? <Spinner label="Meldungen werden geladen…" /> : null}
+          {items && items.length === 0 ? <EmptyState text="Zurzeit liegen keine Meldungen vor." /> : null}
+
+          {items && items.length > 0 ? (
+            <div className="card news-list">
+              {items.map((n, index) => {
+                const link = safeHttpUrl(n.link);
+                return (
+                  <article className="news-card" key={`${n.link}-${index}`}>
+                    <h2>{n.title}</h2>
+                    <div className="news-meta">
+                      <span className="badge source-badge">{n.source}</span>
+                      <span className="hint">{formatDate(n.publishedAt)}</span>
+                      {link ? (
+                        <>
+                          {' '}·{' '}
+                          <a href={link} target="_blank" rel="noopener noreferrer">
+                            Zur Meldung <span aria-hidden="true">↗</span>
+                          </a>
+                        </>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
           ) : null}
-        </ErrorBox>
-      ) : null}
-
-      {!items && !error ? <Spinner label="Meldungen werden geladen…" /> : null}
-      {items && items.length === 0 ? (
-        <EmptyState text="Zurzeit liegen keine Meldungen vor." />
-      ) : null}
-
-      {items && items.length > 0 ? (
-        <section>
-          {items.map((n) => {
-            const link = safeHttpUrl(n.url);
-            return (
-              <article className="newsitem" key={n.id}>
-                <h2 style={{ margin: '4px 0' }}>{n.title}</h2>
-                <p className="meta">
-                  Quelle: {n.source} · Veröffentlicht am {formatDate(n.publishedAt)}
-                  {link ? (
-                    <>
-                      {' '}·{' '}
-                      <a href={link} target="_blank" rel="noopener noreferrer">
-                        Weiter zur Meldung (öffnet in neuem Fenster)
-                      </a>
-                    </>
-                  ) : n.url ? (
-                    <> · <span className="hint">Link unterdrückt (kein http/https)</span></>
-                  ) : null}
-                </p>
-                {n.summary ? <p>{n.summary}</p> : null}
-              </article>
-            );
-          })}
-        </section>
-      ) : null}
-
-      <p>
-        <button type="button" className="secondary" onClick={reload}>Neu laden</button>
-      </p>
+        </div>
+      </main>
     </div>
   );
 }

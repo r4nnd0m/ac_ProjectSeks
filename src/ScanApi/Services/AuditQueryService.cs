@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ScanApi.Dtos;
+using ScanApi.Extensions;
 using Sims.Shared.Data;
-using Sims.Shared.Entities;
 
 namespace ScanApi.Services;
 
@@ -14,16 +14,9 @@ public class AuditQueryService(SimsDbContext db) : IAuditQueryService
 {
     public async Task<PagedResponse<AuditEntryResponse>> ListAsync(AuditFilter filter, CancellationToken ct = default)
     {
-        IQueryable<AuditEntry> query = db.AuditEntries.AsNoTracking();
-
-        int total = await query.CountAsync(ct);
-        List<AuditEntryResponse> items = await query
-            .OrderByDescending(e => e.Timestamp)
-            .Skip((filter.Page - 1) * filter.PageSize)
-            .Take(filter.PageSize)
+        return await db.AuditEntries.AsNoTracking()
+            .OrderByDescending(e => e.Timestamp).ThenBy(e => e.Id)
             .Select(e => new AuditEntryResponse(e.Id, e.Timestamp, e.UserName, e.Action, e.TicketId, e.Details))
-            .ToListAsync(ct);
-
-        return new PagedResponse<AuditEntryResponse>(items, filter.Page, filter.PageSize, total);
+            .ReadPageAsync(filter.Page, filter.PageSize, ct);
     }
 }

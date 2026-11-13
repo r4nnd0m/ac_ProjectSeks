@@ -38,9 +38,9 @@ public class SimsDbContext(DbContextOptions<SimsDbContext> options) : DbContext(
 
         modelBuilder.Entity<Component>(entity =>
         {
-            entity.Property(c => c.Name).HasMaxLength(200).IsRequired();
-            entity.Property(c => c.Version).HasMaxLength(100);
-            entity.Property(c => c.Purl).HasMaxLength(500);
+            entity.Property(c => c.Name).HasMaxLength(Component.MaxNameLength).IsRequired();
+            entity.Property(c => c.Version).HasMaxLength(Component.MaxVersionLength);
+            entity.Property(c => c.Purl).HasMaxLength(Component.MaxPurlLength);
             entity.HasMany(c => c.Findings).WithOne(f => f.Component).HasForeignKey(f => f.ComponentId).OnDelete(DeleteBehavior.NoAction);
         });
 
@@ -55,7 +55,7 @@ public class SimsDbContext(DbContextOptions<SimsDbContext> options) : DbContext(
 
         modelBuilder.Entity<Ticket>(entity =>
         {
-            entity.Property(t => t.Title).HasMaxLength(200).IsRequired();
+            entity.Property(t => t.Title).HasMaxLength(Ticket.MaxTitleLength).IsRequired();
             entity.Property(t => t.Description).HasMaxLength(4000);
             entity.Property(t => t.Cve).HasMaxLength(50);
             entity.Property(t => t.System).HasMaxLength(200);

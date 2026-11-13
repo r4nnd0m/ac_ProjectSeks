@@ -102,7 +102,7 @@ public sealed class WorkerLifecycleTests
     private sealed class WorkerHarness : IAsyncDisposable
     {
         private readonly ServiceProvider _services;
-        private readonly global::Worker.Worker _worker;
+        private readonly global::Worker.ScanPollingService _worker;
 
         public ProbeState State { get; }
         public RecordingLoggerProvider Logs { get; } = new();
@@ -120,9 +120,9 @@ public sealed class WorkerLifecycleTests
                 ValidateScopes = true,
                 ValidateOnBuild = true
             });
-            _worker = new global::Worker.Worker(
+            _worker = new global::Worker.ScanPollingService(
                 _services.GetRequiredService<IServiceScopeFactory>(),
-                _services.GetRequiredService<ILogger<global::Worker.Worker>>(),
+                _services.GetRequiredService<ILogger<global::Worker.ScanPollingService>>(),
                 Options.Create(new WorkerOptions { PollIntervalSeconds = pollIntervalSeconds }), TimeProvider.System);
         }
 
@@ -194,7 +194,6 @@ public sealed class WorkerLifecycleTests
 
         public async ValueTask DisposeAsync()
         {
-            // Der Arbeitsbereich muss auch asynchrones Aufräumen abwarten.
             await Task.Yield();
             state.RecordDisposal(_id);
         }

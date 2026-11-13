@@ -20,7 +20,6 @@ public sealed class EscalationJob(
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-            // Angefordertes Beenden unterbricht die Arbeit oder das Warten.
         }
         finally { logger.LogInformation("Eskalationsprüfung sauber beendet."); }
     }
@@ -35,7 +34,7 @@ public sealed class EscalationJob(
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (Exception ex)
         {
-            // Auch nach Fehlern Scope entsorgen; weder fremde Meldungen noch Secrets loggen.
+            // Nur den Typ loggen, die Meldung kann Verbindungsdaten enthalten.
             logger.LogError("Eskalationsdurchlauf fehlgeschlagen ({ErrorType}). Der nächste Durchlauf wird erneut versucht.", ex.GetType().Name);
         }
     }

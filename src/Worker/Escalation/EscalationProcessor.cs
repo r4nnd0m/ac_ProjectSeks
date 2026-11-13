@@ -1,9 +1,5 @@
 namespace Worker.Escalation;
 
-/// <summary>
-/// Verbindet Laden, Regelaufruf, Ticketänderung und Audit.
-/// Noch nicht im normalen Host angeschlossen: Die Adapter zu B1/C1/C4/C5 fehlen.
-/// </summary>
 public sealed class EscalationProcessor(
     IEscalationStore store,
     IEscalationPolicy policy,
@@ -20,7 +16,6 @@ public sealed class EscalationProcessor(
         foreach (var ticket in tickets)
         {
             ct.ThrowIfCancellationRequested();
-            // Auch an der Worker-Grenze prüfen. Die spätere SQL-Abfrage filtert ebenso.
             if (ticket.IsFinished || ticket.DueAt is null || ticket.DueAt >= now || ticket.EscalationLevel >= 3)
                 continue;
 

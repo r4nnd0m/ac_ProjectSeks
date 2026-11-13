@@ -56,9 +56,18 @@ public class TicketCreator(EscalationPolicy policy)
     {
         EscalationStart start = policy.StartFor(finding.Severity, finding.IsKev, now);
 
+        string title = $"{vulnerability} in {finding.Component.Name} {finding.Component.Version}";
+        if (title.Length > Ticket.MaxTitleLength)
+        {
+            int end = Ticket.MaxTitleLength - 1;
+            if (char.IsHighSurrogate(title[end - 1]))
+                end--;
+            title = title[..end] + "…";
+        }
+
         NewTicket data = new NewTicket(
             project.TeamId,
-            $"{vulnerability} in {finding.Component.Name} {finding.Component.Version}",
+            title,
             finding.Summary ?? "",
             finding.Severity,
             Guid.Empty,

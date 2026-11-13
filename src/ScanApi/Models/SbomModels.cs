@@ -1,6 +1,6 @@
 namespace ScanApi.Models;
 
-public record CycloneDxBom(string? BomFormat, string? SpecVersion, List<CycloneDxComponent>? Components);
+public record CycloneDxBom(string? BomFormat, string? SpecVersion, List<CycloneDxComponent?>? Components);
 
 public record CycloneDxComponent(string? Name, string? Version, string? Purl);
 

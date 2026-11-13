@@ -1,7 +1,4 @@
-// API-Client für die News-API (Port 8083).
-//
-// Aus dem Auftrag bekannt: GET /news (öffentlich). Weitere Endpunkte sind
-// nicht vereinbart; PROVISORISCH, siehe Seite „Hinweise“.
+// API-Client für den News-Service: GET /news, öffentlich ohne Anmeldung (E5).
 
 import { simsConfig, USE_MOCKS } from '../config';
 import type { NewsItemDto } from '../types';

@@ -1,6 +1,8 @@
 ﻿B4 | Welches Urteil folgt aus den Funden eines Scans?
 Für Christian | Abstimmung mit Stefan | Entwurf vom 07.11.2026
 
+Stand 10.11.2026: Im gemeinsamen Teststand infra-test umgesetzt. Aktuelle Regeln und Konfigurationswerte siehe README.
+
 D3 fragt B4 nach einem einzigen Urteil für den gesamten Scan.
 
 Vorschlag für die Umsetzung

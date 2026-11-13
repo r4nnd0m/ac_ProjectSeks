@@ -4,6 +4,7 @@ using ScanApi.Dtos;
 using ScanApi.Extensions;
 using Sims.Shared.Audit;
 using Sims.Shared.Data;
+using Sims.Shared.Escalation;
 using Sims.Shared.Entities;
 
 namespace ScanApi.Services;
@@ -25,7 +26,7 @@ public interface ITicketService
     Task<TicketOutcome> AcceptRiskAsync(Guid id, AcceptRiskRequest request, ClaimsPrincipal user, CancellationToken ct = default);
 }
 
-public class TicketService(SimsDbContext db, TimeProvider clock, AuditService audit) : ITicketService
+public class TicketService(SimsDbContext db, TimeProvider clock, AuditService audit, EscalationPolicy escalation) : ITicketService
 {
     public async Task<PagedResponse<TicketResponse>> ListAsync(TicketFilter filter, ClaimsPrincipal user, CancellationToken ct = default)
     {
@@ -47,15 +48,9 @@ public class TicketService(SimsDbContext db, TimeProvider clock, AuditService au
             query = query.Where(t => t.AssigneeId == userId);
         }
 
-        int total = await query.CountAsync(ct);
-        List<Ticket> tickets = await query
-            .OrderByDescending(t => t.CreatedAt)
-            .Skip((filter.Page - 1) * filter.PageSize)
-            .Take(filter.PageSize)
-            .ToListAsync(ct);
-
-        List<TicketResponse> items = tickets.Select(t => t.ToResponse()).ToList();
-        return new PagedResponse<TicketResponse>(items, filter.Page, filter.PageSize, total);
+        return await query.OrderByDescending(t => t.CreatedAt).ThenBy(t => t.Id)
+            .Select(t => t.ToResponse())
+            .ReadPageAsync(filter.Page, filter.PageSize, ct);
     }
 
     public async Task<TicketResponse?> GetAsync(Guid id, ClaimsPrincipal user, CancellationToken ct = default)
@@ -70,9 +65,8 @@ public class TicketService(SimsDbContext db, TimeProvider clock, AuditService au
 
         if (request.ProjectId is { } projectId)
         {
-            bool isAdmin = user.IsAdmin();
-            Project? project = await db.Projects.AsNoTracking()
-                .FirstOrDefaultAsync(p => p.Id == projectId && (isAdmin || p.TeamId == teamId), ct);
+            Project? project = await db.Projects.AsNoTracking().ForUser(user)
+                .FirstOrDefaultAsync(p => p.Id == projectId, ct);
 
             if (project is null)
             {
@@ -82,6 +76,8 @@ public class TicketService(SimsDbContext db, TimeProvider clock, AuditService au
             teamId = project.TeamId;
         }
 
+        var now = clock.GetUtcNow();
+        var start = escalation.StartFor(request.Severity, isKev: false, now);
         NewTicket data = new NewTicket(
             teamId,
             request.Title,
@@ -91,101 +87,71 @@ public class TicketService(SimsDbContext db, TimeProvider clock, AuditService au
             user.GetUserName(),
             ProjectId: request.ProjectId,
             Cve: request.Cve,
-            System: request.System);
+            System: request.System,
+            EscalationLevel: start.Level,
+            AssignedRole: start.AssignedRole,
+            DueAt: start.DueAt);
 
-        Ticket ticket = new Ticket(data, clock.GetUtcNow());
+        Ticket ticket = new Ticket(data, now);
         db.Tickets.Add(ticket);
         await db.SaveChangesAsync(ct);
 
         return ticket.ToResponse();
     }
 
-    public async Task<TicketResult> UpdateAsync(Guid id, UpdateTicketRequest request, ClaimsPrincipal user, CancellationToken ct = default)
+    public Task<TicketResult> UpdateAsync(Guid id, UpdateTicketRequest request, ClaimsPrincipal user, CancellationToken ct = default)
     {
-        Ticket? ticket = await FindAsync(id, user, ct);
-
-        if (ticket is null)
-        {
-            return new TicketResult(TicketOutcome.NotFound);
-        }
-
-        if (ticket.IsFinished)
-        {
-            return new TicketResult(TicketOutcome.Conflict);
-        }
-
-        ticket.Update(request.Title, request.Description, request.Severity);
-        await db.SaveChangesAsync(ct);
-
-        return new TicketResult(TicketOutcome.Ok, ticket.ToResponse());
+        return ChangeAsync(id, user, ticket => ticket.Update(request.Title, request.Description, request.Severity), ct);
     }
 
     public async Task<TicketOutcome> TakeAsync(Guid id, ClaimsPrincipal user, CancellationToken ct = default)
     {
-        Ticket? ticket = await FindAsync(id, user, ct);
-
-        if (ticket is null)
+        var result = await ChangeAsync(id, user, ticket =>
         {
-            return TicketOutcome.NotFound;
-        }
-
-        if (ticket.IsFinished)
-        {
-            return TicketOutcome.Conflict;
-        }
-
-        ticket.Assign(user.GetUserId(), user.GetUserName());
-        audit.Record(user.GetUserId(), user.GetUserName(), AuditActions.TicketTaken, ticket.Id, null);
-        await db.SaveChangesAsync(ct);
-
-        return TicketOutcome.Ok;
+            var userId = user.GetUserId();
+            var name = user.GetUserName();
+            ticket.Assign(userId, name);
+            audit.Record(userId, name, AuditActions.TicketTaken, id, null);
+        }, ct);
+        return result.Outcome;
     }
 
     public async Task<TicketOutcome> CloseAsync(Guid id, ClaimsPrincipal user, CancellationToken ct = default)
     {
-        Ticket? ticket = await FindAsync(id, user, ct);
-
-        if (ticket is null)
+        var result = await ChangeAsync(id, user, ticket =>
         {
-            return TicketOutcome.NotFound;
-        }
-
-        if (ticket.IsFinished)
-        {
-            return TicketOutcome.Conflict;
-        }
-
-        ticket.Close(clock.GetUtcNow());
-        audit.Record(user.GetUserId(), user.GetUserName(), AuditActions.TicketClosed, ticket.Id, null);
-        await db.SaveChangesAsync(ct);
-
-        return TicketOutcome.Ok;
+            ticket.Close(clock.GetUtcNow());
+            audit.Record(user.GetUserId(), user.GetUserName(), AuditActions.TicketClosed, id, null);
+        }, ct);
+        return result.Outcome;
     }
 
     public async Task<TicketOutcome> AcceptRiskAsync(Guid id, AcceptRiskRequest request, ClaimsPrincipal user, CancellationToken ct = default)
     {
-        Ticket? ticket = await FindAsync(id, user, ct);
-
-        if (ticket is null)
+        var result = await ChangeAsync(id, user, ticket =>
         {
-            return TicketOutcome.NotFound;
-        }
-
-        if (ticket.IsFinished)
-        {
-            return TicketOutcome.Conflict;
-        }
-
-        ticket.AcceptRisk(clock.GetUtcNow());
-        audit.Record(user.GetUserId(), user.GetUserName(), AuditActions.RiskAccepted, ticket.Id, request.Justification);
-        await db.SaveChangesAsync(ct);
-
-        return TicketOutcome.Ok;
+            ticket.AcceptRisk(clock.GetUtcNow());
+            audit.Record(user.GetUserId(), user.GetUserName(), AuditActions.RiskAccepted, id, request.Justification);
+        }, ct);
+        return result.Outcome;
     }
 
-    // Lädt ein Ticket zum Ändern (mit Verfolgung) und beachtet dabei die Teamgrenze.
-    private async Task<Ticket?> FindAsync(Guid id, ClaimsPrincipal user, CancellationToken ct)
+    private async Task<TicketResult> ChangeAsync(Guid id, ClaimsPrincipal user, Action<Ticket> change, CancellationToken ct)
     {
-        return await db.Tickets.ForUser(user).FirstOrDefaultAsync(t => t.Id == id, ct);
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        // Statusprüfung und Audit gehören zur selben Änderung. Auch der Eskalationsjob bearbeitet diese Zeile.
+        var ticket = await db.Tickets
+            .FromSql($"SELECT * FROM [scan].[Tickets] WITH (XLOCK, ROWLOCK) WHERE [Id] = {id}")
+            .ForUser(user)
+            .SingleOrDefaultAsync(ct);
+        if (ticket is null)
+            return new TicketResult(TicketOutcome.NotFound);
+        if (ticket.IsFinished)
+            return new TicketResult(TicketOutcome.Conflict);
+
+        change(ticket);
+        await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        return new TicketResult(TicketOutcome.Ok, ticket.ToResponse());
     }
 }

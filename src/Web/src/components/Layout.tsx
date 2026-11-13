@@ -1,9 +1,11 @@
-// Gemeinsamer Seitenrahmen mit schlichter Navigation (E1).
+// Gemeinsamer Seitenrahmen mit modernem Layout (Atlassian-Style).
 
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { simsConfig, USE_MOCKS } from '../config';
 import { DemoBadge } from './ui';
+import { ThemeToggle } from './ThemeToggle';
+import { BrandLogo } from './BrandLogo';
 
 export function Layout() {
   const { user, logout } = useAuth();
@@ -15,26 +17,26 @@ export function Layout() {
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <NavLink to="/projects" className="brand-title">
-            SIMS – Sul Sul, Exploit!
+          <NavLink to="/dashboard" className="brand-title">
+            <BrandLogo size={40} />
           </NavLink>
-          <span className="brand-sub">Prüfung von Bibliotheken vor der Softwarefreigabe</span>
+          <span className="brand-sub">Security Incident Management System</span>
         </div>
         <div className="session">
           {USE_MOCKS ? <DemoBadge /> : null}
           {user ? (
             <span className="who">
-              {user.name} · {user.role}
-              {user.mfaVerified ? ' · 2FA bestätigt' : ''}
+              {user.email} · {user.role}
+              {user.mfaVerified ? ' · 2FA' : ''}
             </span>
           ) : (
             <span className="who">Nicht angemeldet</span>
           )}
           {user ? (
             <button
-              className="linkbtn"
+              className="link-btn"
               onClick={() => {
-                logout();
+                void logout();
                 navigate('/login');
               }}
             >
@@ -43,17 +45,19 @@ export function Layout() {
           ) : (
             <NavLink to="/login">Anmelden</NavLink>
           )}
+          <ThemeToggle />
         </div>
       </header>
 
       <nav className="mainnav" aria-label="Hauptnavigation">
+        <NavLink to="/dashboard" className={link}>Dashboard</NavLink>
         <NavLink to="/projects" className={link}>Projekte</NavLink>
         <NavLink to="/tickets" className={link}>Tickets</NavLink>
         {user?.role === 'Admin' ? (
           <NavLink to="/admin/users" className={link}>Verwaltung</NavLink>
         ) : null}
         <NavLink to="/news" className={link}>Öffentliche Meldungen</NavLink>
-        {user ? <NavLink to="/mfa-setup" className={link}>Zwei-Faktor</NavLink> : null}
+        {user ? <NavLink to="/mfa-setup" className={link}>2FA</NavLink> : null}
         <NavLink to="/hinweise" className={link}>Hinweise</NavLink>
       </nav>
 
@@ -64,13 +68,12 @@ export function Layout() {
       <footer className="footer">
         {USE_MOCKS ? (
           <p>
-            <strong>Demo-Modus aktiv</strong> (VITE_USE_MOCKS): alle Daten sind erfunden. Echte Scanurteile,
-            Ticketregeln und Eskalationen liefert das Backend.
+            <strong>Demo-Modus</strong> (VITE_USE_MOCKS): alle Daten sind erfunden. 
+            Echte Scanurteile, Ticketregeln und Eskalationen liefert das Backend.
           </p>
         ) : (
           <p>
             APIs: Auth {simsConfig.authUrl} · Scan {simsConfig.scanUrl} · News {simsConfig.newsUrl}
-            (Basis-URLs in public/config.js)
           </p>
         )}
       </footer>
